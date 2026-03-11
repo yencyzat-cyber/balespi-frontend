@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Balespi Import - Sistema de Ventas</title>
+    <title>Balespi Import - POS Manual</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -19,8 +19,12 @@
             const [productos, setProductos] = useState([]);
             const [carrito, setCarrito] = useState([]);
             const [cargando, setCargando] = useState(true);
+            
+            // NUEVOS ESTADOS PARA EL CONTROL MANUAL
+            const [canal, setCanal] = useState("tienda");
+            const [vendedora, setVendedora] = useState("");
+            const [cliente, setCliente] = useState("");
 
-            // 1. CONEXIÓN AL BACKEND (RENDER)
             const API_URL = "https://balespi-api.onrender.com";
 
             useEffect(() => {
@@ -37,18 +41,24 @@
             };
 
             const procesarVenta = () => {
+                if (!vendedora) {
+                    alert("⚠️ Por favor ingresa el nombre de la vendedora.");
+                    return;
+                }
+
+                // Usamos el precio según el canal (asumimos price_tienda para ambos por ahora, luego lo ajustamos si hay price_live)
                 const totalCalculado = carrito.reduce((sum, item) => sum + item.price_tienda, 0);
                 
                 const venta = {
                     order_id: "V-" + Math.floor(Math.random() * 10000),
-                    seller: "Vendedora Web",
-                    client: "Cliente Web",
+                    seller: vendedora,
+                    client: cliente || "Cliente Mostrador", // Si lo dejan en blanco, usa este por defecto
                     phone: "000000000",
-                    channel: "tienda",
+                    channel: canal, // Envía 'tienda' o 'live' a tu motor Python
                     subtotal: totalCalculado,
                     discount_pct: 0,
                     total: totalCalculado,
-                    notes: "Venta rápida por web",
+                    notes: `Venta manual desde POS - Canal: ${canal}`,
                     items: carrito.map(item => ({
                         product_id: item.id,
                         sale_type: "unidad",
@@ -57,7 +67,6 @@
                     }))
                 };
 
-                // 2. ENVIAR VENTA A LA NUBE
                 fetch(`${API_URL}/registrar_venta`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -65,67 +74,102 @@
                 })
                 .then(res => res.json())
                 .then(data => {
-                    // --- AQUÍ ESTÁ EL BLINDAJE PROFESIONAL ---
                     if (data.estado === "exito") {
-                        // Solo si el éxito es REAL
-                        alert("¡Venta registrada con éxito en la nube!");
+                        alert(`✅ ¡Venta registrada con éxito!\nCanal: ${canal.toUpperCase()}\nVendedora: ${vendedora}`);
                         setCarrito([]);
-                        window.location.reload(); // Recarga para ver el nuevo stock
+                        setCliente("");
+                        window.location.reload(); 
                     } else {
-                        // SI HAY UN ERROR DE SUPABASE, LO ATRAPAMOS AQUÍ
-                        // Mostramos el detalle en un alert y NO REFRESCAMOS LA PÁGINA
                         alert("⛔ ERROR DE SUPABASE DETECTADO ⛔\n\nDetalle:\n" + data.detalle);
-                        console.error("Error completo:", data);
                     }
                 })
-                .catch(err => {
-                    // Si Render está apagado o hay error de red
-                    alert("❌ ERROR DE CONEXIÓN CON EL SERVIDOR ❌\n\nDetalle:\n" + err);
-                });
+                .catch(err => alert("❌ ERROR DE CONEXIÓN ❌\n" + err));
             };
 
-            if (cargando) return <div class="p-10 text-center">Cargando Balespi Import...</div>;
+            if (cargando) return <div className="p-10 text-center text-xl font-bold animate-pulse text-blue-600">Cargando Sistema Balespi...</div>;
 
             return (
-                <div class="p-4 max-w-4xl mx-auto">
-                    <h1 class="text-3xl font-bold text-blue-600 mb-6 text-center">Balespi Import 24/7</h1>
+                <div className="p-4 max-w-5xl mx-auto font-sans">
+                    <h1 className="text-3xl font-extrabold text-blue-800 mb-6 text-center shadow-sm p-3 bg-white rounded-lg">Balespi Import - Terminal POS</h1>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* PANEL DE CONFIGURACIÓN DE VENTA */}
+                    <div className="bg-white p-4 rounded-lg shadow mb-6 border-t-4 border-blue-600 flex flex-wrap gap-4 items-end">
+                        <div className="flex-1 min-w-[200px]">
+                            <label className="block text-sm font-bold text-gray-700 mb-1">Vendedora *</label>
+                            <input type="text" value={vendedora} onChange={e => setVendedora(e.target.value)} placeholder="Ej. Ana, Lucero..." className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500" />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <label className="block text-sm font-bold text-gray-700 mb-1">Cliente</label>
+                            <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nombre del cliente" className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500" />
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <label className="block text-sm font-bold text-gray-700 mb-1">Canal de Venta</label>
+                            <select value={canal} onChange={e => setCanal(e.target.value)} className="w-full border p-2 rounded bg-blue-50 font-bold text-blue-800">
+                                <option value="tienda">🏬 Tienda Física</option>
+                                <option value="live">🔴 Transmisión Live</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* LISTA DE PRODUCTOS */}
-                        <div>
-                            <h2 class="text-xl font-semibold mb-4">Catálogo de Productos</h2>
-                            {productos.map(p => (
-                                <div key={p.id} class="bg-white p-4 rounded shadow mb-3 flex justify-between items-center">
-                                    <div>
-                                        <p class="font-bold">{p.name}</p>
-                                        <p class="text-sm text-gray-500">Stock Tienda: {p.stock_tienda}</p>
-                                        <p class="text-blue-600">S/ {p.price_tienda}</p>
-                                    </div>
-                                    <button 
-                                        onClick={() => agregarAlCarrito(p)}
-                                        class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">
-                                        + Agregar
-                                    </button>
-                                </div>
-                            ))}
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                            <h2 className="text-xl font-bold mb-4 text-gray-800 border-b pb-2">Catálogo ({canal.toUpperCase()})</h2>
+                            <div className="space-y-3">
+                                {productos.map(p => {
+                                    // Lógica dinámica para mostrar el stock correcto
+                                    const stockActual = canal === "tienda" ? p.stock_tienda : p.stock_live;
+                                    const alertaStock = stockActual < 10 ? "text-red-500 font-bold" : "text-gray-600";
+
+                                    return (
+                                        <div key={p.id} className="bg-white p-4 rounded shadow-sm border border-gray-200 flex justify-between items-center hover:border-blue-300 transition-colors">
+                                            <div>
+                                                <p className="font-bold text-lg">{p.name}</p>
+                                                <p className="text-sm">
+                                                    Stock {canal}: <span className={alertaStock}>{stockActual} unid.</span>
+                                                </p>
+                                                <p className="text-blue-600 font-bold">S/ {p.price_tienda}</p>
+                                            </div>
+                                            <button 
+                                                onClick={() => agregarAlCarrito(p)}
+                                                disabled={stockActual <= 0}
+                                                className="bg-green-500 text-white px-4 py-2 rounded font-bold shadow hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                                                {stockActual <= 0 ? "Agotado" : "+ Agregar"}
+                                            </button>
+                                        </div>
+                                    )
+                                })}
+                            </div>
                         </div>
 
-                        {/* CARRITO / VENTA */}
-                        <div class="bg-blue-50 p-6 rounded-lg border-2 border-blue-200">
-                            <h2 class="text-xl font-semibold mb-4 text-blue-800">Carrito de Venta</h2>
-                            {carrito.map((item, idx) => (
-                                <div key={idx} class="flex justify-between border-b py-2">
-                                    <span>{item.name}</span>
-                                    <span class="font-bold">S/ {item.price_tienda}</span>
+                        {/* CARRITO / RESUMEN */}
+                        <div className="bg-blue-50 p-6 rounded-lg border-2 border-blue-200 shadow-md h-fit sticky top-4">
+                            <h2 className="text-2xl font-bold mb-4 text-blue-900 border-b border-blue-200 pb-2">Resumen de Venta</h2>
+                            
+                            {carrito.length === 0 ? (
+                                <p className="text-gray-500 italic text-center py-8">El carrito está vacío</p>
+                            ) : (
+                                <div className="space-y-2 mb-6 max-h-64 overflow-y-auto">
+                                    {carrito.map((item, idx) => (
+                                        <div key={idx} className="flex justify-between bg-white p-2 rounded border border-blue-100">
+                                            <span className="text-gray-800">{item.name}</span>
+                                            <span className="font-bold text-blue-800">S/ {item.price_tienda}</span>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
-                            <div class="mt-6">
-                                <p class="text-2xl font-bold text-right">Total: S/ {carrito.reduce((sum, i) => sum + i.price_tienda, 0)}</p>
+                            )}
+
+                            <div className="mt-4 pt-4 border-t-2 border-blue-200">
+                                <div className="flex justify-between items-center mb-6">
+                                    <span className="text-xl text-gray-700">Total a cobrar:</span>
+                                    <span className="text-3xl font-black text-blue-700">S/ {carrito.reduce((sum, i) => sum + i.price_tienda, 0)}</span>
+                                </div>
+                                
                                 <button 
                                     onClick={procesarVenta}
                                     disabled={carrito.length === 0}
-                                    class="w-full bg-blue-600 text-white py-3 rounded-lg mt-4 font-bold disabled:bg-gray-400">
-                                    CONFIRMAR VENTA
+                                    className="w-full bg-blue-700 text-white py-4 rounded-xl font-extrabold text-lg shadow-lg hover:bg-blue-800 disabled:bg-gray-400 disabled:shadow-none transition-all transform active:scale-95">
+                                    💰 REGISTRAR PAGO
                                 </button>
                             </div>
                         </div>
