@@ -9,9 +9,7 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Estilos base para simular una App Móvil */
-        body { background-color: #000; }
-        .app-container { max-width: 480px; margin: 0 auto; background-color: #0E0E12; min-height: 100vh; position: relative; color: white; font-family: system-ui, -apple-system, sans-serif; }
+        body { background-color: #0E0E12; color: white; font-family: system-ui, -apple-system, sans-serif; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
@@ -33,11 +31,10 @@
 
             // Contexto de Venta
             const [canal, setCanal] = useState("tienda");
-            const [vendedora, setVendedora] = useState("Vendedora Tienda");
+            const [vendedora, setVendedora] = useState("Cajero Tienda");
 
             const API_URL = "https://balespi-api.onrender.com";
 
-            // Función para cargar/recargar productos sin parpadear la web
             const cargarProductos = () => {
                 fetch(`${API_URL}/productos`)
                     .then(res => res.json())
@@ -51,21 +48,45 @@
                 cargarProductos();
             }, []);
 
-            const agregarAlCarrito = (p) => {
-                setCarrito([...carrito, { ...p, cantidad: 1 }]);
+            // LÓGICA DE CARRITO CORREGIDA (Agrupación)
+            const agregarAlCarrito = (producto) => {
+                const index = carrito.findIndex(item => item.id === producto.id);
+                if (index !== -1) {
+                    // Si ya existe, le sumamos 1 a la cantidad
+                    const nuevoCarrito = [...carrito];
+                    nuevoCarrito[index].cantidad += 1;
+                    setCarrito(nuevoCarrito);
+                } else {
+                    // Si no existe, lo agregamos con cantidad 1
+                    setCarrito([...carrito, { ...producto, cantidad: 1 }]);
+                }
             };
 
-            const quitarDelCarrito = (index) => {
-                const nuevoCarrito = [...carrito];
-                nuevoCarrito.splice(index, 1);
+            // NUEVA FUNCIÓN: Cambiar cantidad con los botones - y +
+            const cambiarCantidad = (id, delta) => {
+                const nuevoCarrito = carrito.map(item => {
+                    if (item.id === id) {
+                        return { ...item, cantidad: item.cantidad + delta };
+                    }
+                    return item;
+                }).filter(item => item.cantidad > 0); // Si llega a 0, se elimina automáticamente
+                
                 setCarrito(nuevoCarrito);
                 if (nuevoCarrito.length === 0) setModalAbierto(false);
             };
 
+            const quitarDelCarrito = (id) => {
+                const nuevoCarrito = carrito.filter(item => item.id !== id);
+                setCarrito(nuevoCarrito);
+                if (nuevoCarrito.length === 0) setModalAbierto(false);
+            };
+
+            // Cálculo del total corregido multiplicando por la cantidad
+            const totalCarrito = carrito.reduce((sum, item) => sum + (item.price_tienda * item.cantidad), 0);
+            const cantidadTotalItems = carrito.reduce((sum, item) => sum + item.cantidad, 0);
+
             const procesarVenta = () => {
-                setProcesandoPago(true); // Cambia el botón a "Procesando..."
-                
-                const totalCalculado = carrito.reduce((sum, item) => sum + item.price_tienda, 0);
+                setProcesandoPago(true);
                 
                 const venta = {
                     order_id: "V-" + Math.floor(Math.random() * 10000),
@@ -73,14 +94,14 @@
                     client: "Cliente Mostrador",
                     phone: "",
                     channel: canal,
-                    subtotal: totalCalculado,
+                    subtotal: totalCarrito,
                     discount_pct: 0,
-                    total: totalCalculado,
+                    total: totalCarrito,
                     notes: "Venta desde Balespi PRO",
                     items: carrito.map(item => ({
                         product_id: item.id,
                         sale_type: "unidad",
-                        qty: 1,
+                        qty: item.cantidad, // Ahora envía la cantidad correcta
                         price_applied: item.price_tienda
                     }))
                 };
@@ -94,7 +115,6 @@
                 .then(data => {
                     setProcesandoPago(false);
                     if (data.estado === "exito") {
-                        // ÉXITO FLUIDO: Limpiamos carrito, cerramos modal, recargamos BD silenciosamente
                         setCarrito([]);
                         setModalAbierto(false);
                         cargarProductos(); 
@@ -109,46 +129,45 @@
                 });
             };
 
-            const totalCarrito = carrito.reduce((sum, i) => sum + i.price_tienda, 0);
-
-            if (cargando) return <div className="app-container flex items-center justify-center h-screen"><p className="text-orange-500 font-bold animate-pulse text-xl">Cargando Balespi PRO...</p></div>;
+            if (cargando) return <div className="flex items-center justify-center h-screen"><p className="text-orange-500 font-bold animate-pulse text-xl">Cargando Balespi PRO...</p></div>;
 
             return (
-                <div className="app-container pb-32">
-                    {/* CABECERA */}
-                    <header className="p-4 border-b border-gray-800 flex justify-between items-center bg-[#0E0E12] sticky top-0 z-10">
+                <div className="min-h-screen pb-32">
+                    {/* CABECERA (Ahora abarca todo el ancho) */}
+                    <header className="p-4 md:px-8 border-b border-gray-800 flex justify-between items-center bg-[#0E0E12] sticky top-0 z-10">
                         <div>
-                            <h1 className="font-bold text-lg text-white">Balespi Import</h1>
-                            <p className="text-xs text-orange-500">Cajero Tienda</p>
+                            <h1 className="font-bold text-xl md:text-2xl text-white">Balespi Import</h1>
+                            <p className="text-sm text-orange-500">{vendedora}</p>
                         </div>
                         <select 
                             value={canal} 
                             onChange={e => setCanal(e.target.value)}
                             className="bg-[#1C1C22] text-sm text-gray-300 p-2 rounded border border-gray-700 outline-none">
-                            <option value="tienda">🏢 Tienda</option>
-                            <option value="live">🔴 Live/WA</option>
+                            <option value="tienda">🏬 Tienda Física</option>
+                            <option value="live">🔴 Live / WhatsApp</option>
                         </select>
                     </header>
 
-                    {/* VISTA PRINCIPAL (VENDER) */}
+                    {/* VISTA PRINCIPAL (Grilla Responsiva) */}
                     {tabActivo === "Vender" && (
-                        <div className="p-4">
-                            <h2 className="text-xl font-bold mb-4">¿Qué vas a vender?</h2>
+                        <div className="p-4 md:p-8 max-w-7xl mx-auto">
+                            <h2 className="text-2xl font-bold mb-6">¿Qué vas a vender?</h2>
                             
-                            <div className="grid grid-cols-2 gap-3">
+                            {/* Grilla que se adapta a PC y celular automáticamente */}
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
                                 {productos.map(p => {
                                     const stockActual = canal === "tienda" ? p.stock_tienda : p.stock_live;
                                     return (
-                                        <div key={p.id} className="bg-[#1C1C22] p-4 rounded-xl border border-gray-800 flex flex-col items-center text-center">
-                                            <div className="text-3xl mb-2">{p.icon || '📦'}</div>
-                                            <p className="font-bold text-sm text-gray-200 mb-1">{p.name}</p>
-                                            <p className="font-black text-lg text-white mb-1">S/ {p.price_tienda.toFixed(2)}</p>
-                                            <p className="text-xs text-gray-500 mb-3">Stock: {stockActual}</p>
+                                        <div key={p.id} className="bg-[#1C1C22] p-6 rounded-2xl border border-gray-800 flex flex-col items-center text-center transition hover:border-orange-500/50 hover:bg-[#25252e]">
+                                            <div className="text-4xl md:text-5xl mb-3">{p.icon || '📦'}</div>
+                                            <p className="font-bold text-base text-gray-200 mb-1">{p.name}</p>
+                                            <p className="font-black text-xl text-white mb-1">S/ {p.price_tienda.toFixed(2)}</p>
+                                            <p className="text-sm text-gray-500 mb-4">Stock: {stockActual}</p>
                                             
                                             <button 
                                                 onClick={() => agregarAlCarrito(p)}
                                                 disabled={stockActual <= 0}
-                                                className="w-full bg-[#2A2A35] text-white py-2 rounded-lg text-sm font-bold hover:bg-gray-700 disabled:opacity-50">
+                                                className="w-full bg-[#2A2A35] text-white py-3 rounded-xl text-sm font-bold hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition">
                                                 {stockActual <= 0 ? "Agotado" : "+ Agregar"}
                                             </button>
                                         </div>
@@ -158,79 +177,85 @@
                         </div>
                     )}
 
-                    {/* VISTAS EN CONSTRUCCIÓN (Fase 3) */}
-                    {tabActivo !== "Vender" && (
-                        <div className="p-10 text-center text-gray-500">
-                            <p className="text-4xl mb-4">🚧</p>
-                            <p>Módulo de {tabActivo} en construcción (Fase 3)</p>
-                        </div>
-                    )}
-
-                    {/* BARRA FLOTANTE NARANJA (Carrito) */}
+                    {/* BARRA FLOTANTE NARANJA (Se centra en PC) */}
                     {carrito.length > 0 && (
-                        <div className="fixed bottom-[80px] w-full max-w-[480px] px-4 z-20">
+                        <div className="fixed bottom-[80px] w-full left-0 flex justify-center px-4 z-20 pointer-events-none">
                             <button 
                                 onClick={() => setModalAbierto(true)}
-                                className="w-full bg-orange-500 text-white p-4 rounded-xl font-bold flex justify-between items-center shadow-lg shadow-orange-500/30 transform transition active:scale-95">
+                                className="w-full max-w-xl bg-orange-500 text-white p-4 rounded-xl font-bold flex justify-between items-center shadow-lg shadow-orange-500/20 transform transition active:scale-95 pointer-events-auto">
                                 <div className="flex items-center gap-3">
-                                    <span className="bg-orange-700 px-3 py-1 rounded-lg">{carrito.length}</span>
-                                    <span>Ver pedido</span>
+                                    <span className="bg-orange-700 px-3 py-1 rounded-lg">{cantidadTotalItems}</span>
+                                    <span className="text-lg">Ver pedido</span>
                                 </div>
                                 <span className="text-xl">S/ {totalCarrito.toFixed(2)}</span>
                             </button>
                         </div>
                     )}
 
-                    {/* NAVEGACIÓN INFERIOR (Bottom Nav) */}
-                    <nav className="fixed bottom-0 w-full max-w-[480px] bg-[#0E0E12] border-t border-gray-800 flex justify-around pb-6 pt-3 px-2 z-10">
-                        {['Vender', 'Pedidos', 'Productos', 'Stats'].map(tab => (
-                            <button 
-                                key={tab} 
-                                onClick={() => setTabActivo(tab)}
-                                className={`flex flex-col items-center gap-1 w-1/4 ${tabActivo === tab ? 'text-orange-500' : 'text-gray-500'}`}>
-                                <span className="text-xl">{tab === 'Vender' ? '🛒' : tab === 'Pedidos' ? '📋' : tab === 'Productos' ? '📦' : '📊'}</span>
-                                <span className="text-[10px] font-bold uppercase tracking-wider">{tab}</span>
-                            </button>
-                        ))}
+                    {/* NAVEGACIÓN INFERIOR (Ocupa todo el ancho pero centrada estéticamente) */}
+                    <nav className="fixed bottom-0 w-full bg-[#0E0E12] border-t border-gray-800 pb-4 pt-2 z-10 flex justify-center">
+                        <div className="flex justify-around w-full max-w-2xl px-2">
+                            {['Vender', 'Pedidos', 'Productos', 'Stats'].map(tab => (
+                                <button 
+                                    key={tab} 
+                                    onClick={() => setTabActivo(tab)}
+                                    className={`flex flex-col items-center gap-1 p-2 rounded-lg ${tabActivo === tab ? 'text-orange-500' : 'text-gray-500 hover:text-gray-300'}`}>
+                                    <span className="text-2xl">{tab === 'Vender' ? '🛒' : tab === 'Pedidos' ? '📋' : tab === 'Productos' ? '📦' : '📊'}</span>
+                                    <span className="text-[11px] font-bold uppercase tracking-wider">{tab}</span>
+                                </button>
+                            ))}
+                        </div>
                     </nav>
 
-                    {/* MODAL DEL PEDIDO */}
+                    {/* MODAL DEL PEDIDO CORREGIDO (Estilo App, centrado en PC) */}
                     {modalAbierto && (
-                        <div className="fixed inset-0 bg-black/80 z-50 flex flex-col justify-end max-w-[480px] mx-auto">
-                            <div className="bg-[#1C1C22] w-full rounded-t-3xl p-6 h-[80vh] flex flex-col">
+                        <div className="fixed inset-0 bg-black/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+                            <div className="bg-[#1C1C22] w-full max-w-lg md:rounded-3xl rounded-t-3xl p-6 h-[85vh] md:h-auto md:max-h-[90vh] flex flex-col relative border border-gray-800">
                                 <div className="flex justify-between items-center mb-6">
                                     <h2 className="text-2xl font-bold">Tu pedido</h2>
-                                    <button onClick={() => setModalAbierto(false)} className="bg-[#2A2A35] rounded-full p-2 w-10 h-10 flex items-center justify-center">✕</button>
+                                    <button onClick={() => setModalAbierto(false)} className="bg-[#2A2A35] rounded-full p-2 w-10 h-10 flex items-center justify-center hover:bg-gray-700">✕</button>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto hide-scrollbar space-y-3 mb-4">
-                                    {carrito.map((item, idx) => (
-                                        <div key={idx} className="bg-[#121215] border border-gray-800 p-4 rounded-xl flex justify-between items-center">
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-2xl">{item.icon || '📦'}</span>
-                                                <div>
-                                                    <p className="font-bold text-gray-200">{item.name}</p>
-                                                    <p className="text-xs text-gray-500">S/ {item.price_tienda.toFixed(2)} c/u</p>
+                                <div className="flex-1 overflow-y-auto hide-scrollbar space-y-4 mb-4 pr-2">
+                                    {carrito.map((item) => (
+                                        <div key={item.id} className="bg-[#121215] border border-gray-800 p-4 rounded-2xl">
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-3xl">{item.icon || '📦'}</span>
+                                                    <div>
+                                                        <p className="font-bold text-gray-200 text-lg">{item.name}</p>
+                                                        <p className="text-sm text-gray-500">unidad · S/ {item.price_tienda.toFixed(2)} c/u</p>
+                                                    </div>
                                                 </div>
+                                                <button onClick={() => quitarDelCarrito(item.id)} className="text-red-500 text-sm font-bold border border-red-900/50 hover:bg-red-900/20 px-3 py-1 rounded-lg">Quitar</button>
                                             </div>
-                                            <div className="text-right">
-                                                <button onClick={() => quitarDelCarrito(idx)} className="text-red-500 text-xs font-bold border border-red-900 px-2 py-1 rounded mb-1">Quitar</button>
-                                                <p className="font-bold text-orange-500">S/ {item.price_tienda.toFixed(2)}</p>
+                                            
+                                            <div className="flex justify-between items-center">
+                                                {/* Controles de Cantidad */}
+                                                <div className="flex items-center bg-[#1C1C22] rounded-xl overflow-hidden border border-gray-700">
+                                                    <button onClick={() => cambiarCantidad(item.id, -1)} className="px-4 py-2 hover:bg-gray-700 font-bold text-lg">−</button>
+                                                    <span className="px-4 font-black text-lg w-12 text-center">{item.cantidad}</span>
+                                                    <button onClick={() => cambiarCantidad(item.id, 1)} className="px-4 py-2 hover:bg-gray-700 font-bold text-lg">+</button>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-xs text-gray-500 mb-1">subtotal</p>
+                                                    <p className="font-black text-xl text-orange-500">S/ {(item.price_tienda * item.cantidad).toFixed(2)}</p>
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
 
-                                <div className="border-t border-gray-800 pt-4 mt-auto">
-                                    <div className="flex justify-between items-end mb-4">
-                                        <p className="text-gray-400 text-sm">TOTAL<br/>{carrito.length} productos</p>
-                                        <p className="text-3xl font-black text-orange-500">S/ {totalCarrito.toFixed(2)}</p>
+                                <div className="border-t border-gray-800 pt-6 mt-auto">
+                                    <div className="flex justify-between items-end mb-4 px-2">
+                                        <p className="text-gray-400 text-sm">TOTAL<br/>{cantidadTotalItems} unidades · {carrito.length} productos</p>
+                                        <p className="text-4xl font-black text-orange-500">S/ {totalCarrito.toFixed(2)}</p>
                                     </div>
                                     <button 
                                         onClick={procesarVenta}
                                         disabled={procesandoPago}
-                                        className="w-full bg-orange-500 text-white p-4 rounded-xl font-bold text-lg disabled:opacity-50 disabled:bg-orange-800 transition-colors">
-                                        {procesandoPago ? "⏳ Procesando en BD..." : `Confirmar · S/ ${totalCarrito.toFixed(2)}`}
+                                        className="w-full bg-orange-500 text-white p-4 rounded-2xl font-bold text-xl disabled:opacity-50 hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20">
+                                        {procesandoPago ? "⏳ Procesando..." : `Confirmar · S/ ${totalCarrito.toFixed(2)}`}
                                     </button>
                                 </div>
                             </div>
