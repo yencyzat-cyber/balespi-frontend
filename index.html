@@ -37,12 +37,18 @@
             };
 
             const procesarVenta = () => {
+                const totalCalculado = carrito.reduce((sum, item) => sum + item.price_tienda, 0);
+                
                 const venta = {
                     order_id: "V-" + Math.floor(Math.random() * 10000),
-                    seller: "Vendedora 01",
+                    seller: "Vendedora Web",
                     client: "Cliente Web",
-                    channel: "tienda", // o "live"
-                    total: carrito.reduce((sum, item) => sum + item.price_tienda, 0),
+                    phone: "000000000",
+                    channel: "tienda",
+                    subtotal: totalCalculado, // <--- AQUÍ ESTÁ EL DATO QUE FALTABA
+                    discount_pct: 0,
+                    total: totalCalculado,
+                    notes: "Venta rápida por web",
                     items: carrito.map(item => ({
                         product_id: item.id,
                         sale_type: "unidad",
