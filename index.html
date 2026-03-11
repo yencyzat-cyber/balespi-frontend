@@ -45,7 +45,7 @@
                     client: "Cliente Web",
                     phone: "000000000",
                     channel: "tienda",
-                    subtotal: totalCalculado, // <--- AQUÍ ESTÁ EL DATO QUE FALTABA
+                    subtotal: totalCalculado,
                     discount_pct: 0,
                     total: totalCalculado,
                     notes: "Venta rápida por web",
@@ -65,9 +65,22 @@
                 })
                 .then(res => res.json())
                 .then(data => {
-                    alert("¡Venta registrada con éxito en la nube!");
-                    setCarrito([]);
-                    window.location.reload(); // Recarga para ver el nuevo stock
+                    // --- AQUÍ ESTÁ EL BLINDAJE PROFESIONAL ---
+                    if (data.estado === "exito") {
+                        // Solo si el éxito es REAL
+                        alert("¡Venta registrada con éxito en la nube!");
+                        setCarrito([]);
+                        window.location.reload(); // Recarga para ver el nuevo stock
+                    } else {
+                        // SI HAY UN ERROR DE SUPABASE, LO ATRAPAMOS AQUÍ
+                        // Mostramos el detalle en un alert y NO REFRESCAMOS LA PÁGINA
+                        alert("⛔ ERROR DE SUPABASE DETECTADO ⛔\n\nDetalle:\n" + data.detalle);
+                        console.error("Error completo:", data);
+                    }
+                })
+                .catch(err => {
+                    // Si Render está apagado o hay error de red
+                    alert("❌ ERROR DE CONEXIÓN CON EL SERVIDOR ❌\n\nDetalle:\n" + err);
                 });
             };
 
