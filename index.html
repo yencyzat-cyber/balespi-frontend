@@ -2,271 +2,659 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Balespi Import PRO</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #0E0E12; color: white; font-family: system-ui, -apple-system, sans-serif; }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        html, body { height: 100%; background: #000; font-family: -apple-system, 'Inter', sans-serif; -webkit-font-smoothing: antialiased; overflow: hidden; }
+        input, select, button, textarea { font-family: inherit; }
+        ::-webkit-scrollbar { display: none; }
+
+        @keyframes slideUp   { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes fadeIn    { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeUp    { from { transform: translateY(18px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes bounceIn  { 0% { transform: scale(.5); opacity: 0; } 60% { transform: scale(1.12); } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes float     { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+        @keyframes pulse     { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(.92); } }
+        @keyframes spin      { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .hap { transition: transform .12s cubic-bezier(.34,1.56,.64,1), opacity .1s; }
+        .hap:active { transform: scale(.88) !important; opacity: .72; }
+
+        .app { max-width: 480px; margin: 0 auto; height: 100vh; display: flex; flex-direction: column; position: relative; color: #fff; background: #0a0a0f; overflow: hidden; }
+
+        /* Ambient blobs */
+        .blob { position: fixed; pointer-events: none; z-index: 0; border-radius: 50%; }
+        .blob-1 { top: -20%; left: -10%; width: 60vw; height: 60vw; max-width: 360px; max-height: 360px; background: radial-gradient(ellipse, rgba(255,159,10,.1) 0%, transparent 70%); animation: float 8s ease-in-out infinite; }
+        .blob-2 { bottom: -10%; right: -10%; width: 50vw; height: 50vw; max-width: 300px; max-height: 300px; background: radial-gradient(ellipse, rgba(255,69,58,.07) 0%, transparent 70%); animation: float 11s ease-in-out infinite reverse; }
+
+        .content { flex: 1; overflow-y: auto; overflow-x: hidden; position: relative; z-index: 1; }
+        .content::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body>
-    <div id="root"></div>
+<div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
 
-        function App() {
-            const [productos, setProductos] = useState([]);
-            const [carrito, setCarrito] = useState([]);
-            const [cargando, setCargando] = useState(true);
-            const [procesandoPago, setProcesandoPago] = useState(false);
-            
-            // UI States
-            const [tabActivo, setTabActivo] = useState("Vender");
-            const [modalAbierto, setModalAbierto] = useState(false);
+const API_URL = "https://balespi-api.onrender.com";
+const ACCENT  = "#ff9f0a";
+const GRAD    = "linear-gradient(135deg, #ff9f0a, #e5850a)";
 
-            // Contexto de Venta
-            const [canal, setCanal] = useState("tienda");
-            const [vendedora, setVendedora] = useState("Cajero Tienda");
+/* ── UTILS ─────────────────────────────────────────── */
+const f   = n => `S/ ${Number(n).toFixed(2)}`;
+const uid = () => "V-" + Math.floor(Math.random() * 100000);
 
-            const API_URL = "https://balespi-api.onrender.com";
+/* ── TIPOS DE VENTA ─────────────────────────────────
+   Usamos los campos del objeto producto que devuelve la API.
+   Ajustá los nombres de campo si tu API usa otros.
+   price_tienda / price_live / price_docena / price_cajon
+   per_dozen / per_box
+────────────────────────────────────────────────────── */
+const TIPOS = [
+  { k: "unidad", e: "1️⃣", l: "Unidad",  priceKey: (p, ch) => ch === "tienda" ? p.price_tienda : p.price_live },
+  { k: "docena", e: "📦",  l: "Docena",  priceKey: (p)     => (p.price_docena ?? p.price_tienda * (p.per_dozen ?? 12)) },
+  { k: "cajon",  e: "🚛",  l: "Cajón",   priceKey: (p)     => (p.price_cajon  ?? p.price_tienda * (p.per_box   ?? 20)) },
+];
 
-            const cargarProductos = () => {
-                fetch(`${API_URL}/productos`)
-                    .then(res => res.json())
-                    .then(data => {
-                        setProductos(data);
-                        setCargando(false);
-                    });
-            };
+const getUnits = (p, tipo) => {
+  if (tipo === "unidad") return 1;
+  if (tipo === "docena") return p.per_dozen ?? 12;
+  if (tipo === "cajon")  return p.per_box   ?? 20;
+  return 1;
+};
 
-            useEffect(() => {
-                cargarProductos();
-            }, []);
+const getPrice = (p, tipo, canal) => {
+  const t = TIPOS.find(x => x.k === tipo);
+  return t ? t.priceKey(p, canal) : p.price_tienda;
+};
 
-            // LÓGICA DE CARRITO CORREGIDA (Agrupación)
-            const agregarAlCarrito = (producto) => {
-                const index = carrito.findIndex(item => item.id === producto.id);
-                if (index !== -1) {
-                    // Si ya existe, le sumamos 1 a la cantidad
-                    const nuevoCarrito = [...carrito];
-                    nuevoCarrito[index].cantidad += 1;
-                    setCarrito(nuevoCarrito);
-                } else {
-                    // Si no existe, lo agregamos con cantidad 1
-                    setCarrito([...carrito, { ...producto, cantidad: 1 }]);
-                }
-            };
+/* ── TOASTS ─────────────────────────────────────────── */
+function Toasts({ toasts, rm }) {
+  return (
+    <div style={{ position:"fixed", top:16, left:"50%", transform:"translateX(-50%)",
+      zIndex:9999, display:"flex", flexDirection:"column", alignItems:"center", gap:8, maxWidth:360 }}>
+      {toasts.map(t => (
+        <div key={t.id} onClick={() => rm(t.id)} style={{
+          background: t.type==="ok"   ? "rgba(48,209,88,.18)"
+                    : t.type==="warn" ? "rgba(255,159,10,.18)"
+                    :                   "rgba(255,69,58,.18)",
+          backdropFilter:"blur(32px)", WebkitBackdropFilter:"blur(32px)",
+          border:`1px solid ${t.type==="ok"?"rgba(48,209,88,.4)":t.type==="warn"?"rgba(255,159,10,.4)":"rgba(255,69,58,.4)"}`,
+          borderRadius:20, padding:"11px 20px", fontSize:13, fontWeight:600,
+          color: t.type==="ok"?"#30d158":t.type==="warn"?"#ff9f0a":"#ff453a",
+          boxShadow:"0 8px 32px rgba(0,0,0,.4)",
+          animation:"slideDown .3s cubic-bezier(.34,1.56,.64,1) both",
+          cursor:"pointer", whiteSpace:"nowrap", textAlign:"center" }}>
+          {t.msg}
+        </div>
+      ))}
+    </div>
+  );
+}
 
-            // NUEVA FUNCIÓN: Cambiar cantidad con los botones - y +
-            const cambiarCantidad = (id, delta) => {
-                const nuevoCarrito = carrito.map(item => {
-                    if (item.id === id) {
-                        return { ...item, cantidad: item.cantidad + delta };
-                    }
-                    return item;
-                }).filter(item => item.cantidad > 0); // Si llega a 0, se elimina automáticamente
-                
-                setCarrito(nuevoCarrito);
-                if (nuevoCarrito.length === 0) setModalAbierto(false);
-            };
+/* ── SHEET (bottom drawer) ─────────────────────────── */
+function Sheet({ open, onClose, title, children }) {
+  if (!open) return null;
+  return (
+    <div onClick={e => e.target === e.currentTarget && onClose()} style={{
+      position:"fixed", inset:0, background:"rgba(0,0,0,.75)",
+      backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
+      zIndex:800, display:"flex", alignItems:"flex-end", justifyContent:"center",
+      animation:"fadeIn .2s ease both", maxWidth:480, margin:"0 auto" }}>
+      <div style={{ width:"100%", maxHeight:"92vh", display:"flex", flexDirection:"column",
+        background:"rgba(14,14,22,.98)", backdropFilter:"blur(40px)",
+        borderRadius:"28px 28px 0 0", border:"1px solid rgba(255,255,255,.08)",
+        borderBottom:"none", boxShadow:"0 -24px 80px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.08)",
+        animation:"slideUp .32s cubic-bezier(.34,1.1,.64,1) both" }}>
+        {/* Handle */}
+        <div style={{ display:"flex", justifyContent:"center", padding:"14px 0 4px", flexShrink:0 }}>
+          <div style={{ width:40, height:4, background:"rgba(255,255,255,.2)", borderRadius:2 }}/>
+        </div>
+        {/* Header */}
+        <div style={{ padding:"8px 22px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", flexShrink:0 }}>
+          <h3 style={{ fontSize:18, fontWeight:800 }}>{title}</h3>
+          <button onClick={onClose} className="hap" style={{ background:"rgba(255,255,255,.08)",
+            border:"1px solid rgba(255,255,255,.1)", borderRadius:50, width:34, height:34,
+            color:"rgba(255,255,255,.6)", fontSize:18, cursor:"pointer",
+            display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
+        </div>
+        <div style={{ overflowY:"auto", padding:"0 22px 40px", flex:1 }}>{children}</div>
+      </div>
+    </div>
+  );
+}
 
-            const quitarDelCarrito = (id) => {
-                const nuevoCarrito = carrito.filter(item => item.id !== id);
-                setCarrito(nuevoCarrito);
-                if (nuevoCarrito.length === 0) setModalAbierto(false);
-            };
+/* ── LOADER ─────────────────────────────────────────── */
+function Loader() {
+  return (
+    <div style={{ height:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:20, background:"#0a0a0f" }}>
+      <div style={{ width:60, height:60, border:`3px solid rgba(255,159,10,.15)`, borderTop:`3px solid ${ACCENT}`, borderRadius:"50%", animation:"spin 1s linear infinite" }}/>
+      <p style={{ color:ACCENT, fontWeight:700, fontSize:15, animation:"pulse 1.5s ease-in-out infinite" }}>Cargando Balespi PRO…</p>
+    </div>
+  );
+}
 
-            // Cálculo del total corregido multiplicando por la cantidad
-            const totalCarrito = carrito.reduce((sum, item) => sum + (item.price_tienda * item.cantidad), 0);
-            const cantidadTotalItems = carrito.reduce((sum, item) => sum + item.cantidad, 0);
+/* ── PANTALLA ÉXITO ─────────────────────────────────── */
+function PantallaExito({ total, onNuevaVenta }) {
+  return (
+    <div style={{ height:"calc(100vh - 130px)", display:"flex", flexDirection:"column",
+      alignItems:"center", justifyContent:"center", gap:20, padding:32, textAlign:"center" }}>
+      <div style={{ fontSize:72, animation:"bounceIn .6s cubic-bezier(.34,1.56,.64,1) both" }}>✅</div>
+      <div style={{ animation:"fadeUp .4s .15s both" }}>
+        <h2 style={{ fontSize:26, fontWeight:900, marginBottom:8 }}>¡Venta registrada!</h2>
+        <div style={{ fontSize:44, fontWeight:900, color:ACCENT, letterSpacing:-2 }}>{f(total)}</div>
+        <p style={{ color:"rgba(255,255,255,.4)", fontSize:13, marginTop:8 }}>Stock actualizado en BD</p>
+      </div>
+      <button onClick={onNuevaVenta} className="hap" style={{
+        background:GRAD, color:"#fff", border:"none", borderRadius:20,
+        padding:"15px 40px", fontSize:16, fontWeight:800, cursor:"pointer",
+        boxShadow:`0 12px 40px ${ACCENT}50`, animation:"fadeUp .4s .3s both" }}>
+        Nueva Venta
+      </button>
+    </div>
+  );
+}
 
-            const procesarVenta = () => {
-                setProcesandoPago(true);
-                
-                const venta = {
-                    order_id: "V-" + Math.floor(Math.random() * 10000),
-                    seller: vendedora,
-                    client: "Cliente Mostrador",
-                    phone: "",
-                    channel: canal,
-                    subtotal: totalCarrito,
-                    discount_pct: 0,
-                    total: totalCarrito,
-                    notes: "Venta desde Balespi PRO",
-                    items: carrito.map(item => ({
-                        product_id: item.id,
-                        sale_type: "unidad",
-                        qty: item.cantidad, // Ahora envía la cantidad correcta
-                        price_applied: item.price_tienda
-                    }))
-                };
+/* ═══════════════════════════════════════════════════════
+   APP PRINCIPAL
+═══════════════════════════════════════════════════════ */
+function App() {
+  const [productos,      setProductos]      = useState([]);
+  const [carrito,        setCarrito]        = useState([]);   // [{...producto, tipo, qty, precio}]
+  const [cargando,       setCargando]       = useState(true);
+  const [procesando,     setProcesando]     = useState(false);
+  const [carritoAbierto, setCarritoAbierto] = useState(false);
+  const [exito,          setExito]          = useState(null); // total de la venta exitosa
+  const [toasts,         setToasts]         = useState([]);
+  const [searchTerm,     setSearchTerm]     = useState("");
+  const [catActiva,      setCatActiva]      = useState(null);
+  const [tipoVenta,      setTipoVenta]      = useState("unidad");
+  const [canal,          setCanal]          = useState("tienda");
+  const [tabActivo,      setTabActivo]      = useState("Vender");
 
-                fetch(`${API_URL}/registrar_venta`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(venta)
-                })
-                .then(res => res.json())
-                .then(data => {
-                    setProcesandoPago(false);
-                    if (data.estado === "exito") {
-                        setCarrito([]);
-                        setModalAbierto(false);
-                        cargarProductos(); 
-                        alert("✅ Venta registrada exitosamente");
-                    } else {
-                        alert("⛔ ERROR EN BD:\n" + data.detalle);
-                    }
-                })
-                .catch(err => {
-                    setProcesandoPago(false);
-                    alert("❌ ERROR DE RED:\n" + err);
-                });
-            };
+  /* ── TOAST helpers ── */
+  const toast = useCallback((type, msg) => {
+    const id = Date.now();
+    setToasts(t => [...t, { id, type, msg }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500);
+  }, []);
+  const rmToast = id => setToasts(t => t.filter(x => x.id !== id));
 
-            if (cargando) return <div className="flex items-center justify-center h-screen"><p className="text-orange-500 font-bold animate-pulse text-xl">Cargando Balespi PRO...</p></div>;
+  /* ── CARGAR PRODUCTOS ── */
+  const cargarProductos = useCallback(() => {
+    fetch(`${API_URL}/productos`)
+      .then(r => r.json())
+      .then(data => { setProductos(data); setCargando(false); })
+      .catch(() => { setCargando(false); toast("err", "❌ No se pudo conectar a la BD"); });
+  }, [toast]);
 
-            return (
-                <div className="min-h-screen pb-32">
-                    {/* CABECERA (Ahora abarca todo el ancho) */}
-                    <header className="p-4 md:px-8 border-b border-gray-800 flex justify-between items-center bg-[#0E0E12] sticky top-0 z-10">
-                        <div>
-                            <h1 className="font-bold text-xl md:text-2xl text-white">Balespi Import</h1>
-                            <p className="text-sm text-orange-500">{vendedora}</p>
-                        </div>
-                        <select 
-                            value={canal} 
-                            onChange={e => setCanal(e.target.value)}
-                            className="bg-[#1C1C22] text-sm text-gray-300 p-2 rounded border border-gray-700 outline-none">
-                            <option value="tienda">🏬 Tienda Física</option>
-                            <option value="live">🔴 Live / WhatsApp</option>
-                        </select>
-                    </header>
+  useEffect(() => { cargarProductos(); }, [cargarProductos]);
 
-                    {/* VISTA PRINCIPAL (Grilla Responsiva) */}
-                    {tabActivo === "Vender" && (
-                        <div className="p-4 md:p-8 max-w-7xl mx-auto">
-                            <h2 className="text-2xl font-bold mb-6">¿Qué vas a vender?</h2>
-                            
-                            {/* Grilla que se adapta a PC y celular automáticamente */}
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-                                {productos.map(p => {
-                                    const stockActual = canal === "tienda" ? p.stock_tienda : p.stock_live;
-                                    return (
-                                        <div key={p.id} className="bg-[#1C1C22] p-6 rounded-2xl border border-gray-800 flex flex-col items-center text-center transition hover:border-orange-500/50 hover:bg-[#25252e]">
-                                            <div className="text-4xl md:text-5xl mb-3">{p.icon || '📦'}</div>
-                                            <p className="font-bold text-base text-gray-200 mb-1">{p.name}</p>
-                                            <p className="font-black text-xl text-white mb-1">S/ {p.price_tienda.toFixed(2)}</p>
-                                            <p className="text-sm text-gray-500 mb-4">Stock: {stockActual}</p>
-                                            
-                                            <button 
-                                                onClick={() => agregarAlCarrito(p)}
-                                                disabled={stockActual <= 0}
-                                                className="w-full bg-[#2A2A35] text-white py-3 rounded-xl text-sm font-bold hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition">
-                                                {stockActual <= 0 ? "Agotado" : "+ Agregar"}
-                                            </button>
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        </div>
-                    )}
+  /* ── CARRITO helpers ── */
+  const stockCanal = (p) => canal === "tienda" ? (p.stock_tienda ?? 0) : (p.stock_live ?? 0);
 
-                    {/* BARRA FLOTANTE NARANJA (Se centra en PC) */}
-                    {carrito.length > 0 && (
-                        <div className="fixed bottom-[80px] w-full left-0 flex justify-center px-4 z-20 pointer-events-none">
-                            <button 
-                                onClick={() => setModalAbierto(true)}
-                                className="w-full max-w-xl bg-orange-500 text-white p-4 rounded-xl font-bold flex justify-between items-center shadow-lg shadow-orange-500/20 transform transition active:scale-95 pointer-events-auto">
-                                <div className="flex items-center gap-3">
-                                    <span className="bg-orange-700 px-3 py-1 rounded-lg">{cantidadTotalItems}</span>
-                                    <span className="text-lg">Ver pedido</span>
-                                </div>
-                                <span className="text-xl">S/ {totalCarrito.toFixed(2)}</span>
-                            </button>
-                        </div>
-                    )}
+  const addToCart = (p) => {
+    const key = `${p.id}-${tipoVenta}`;
+    const precio = getPrice(p, tipoVenta, canal);
+    const units  = getUnits(p, tipoVenta);
+    setCarrito(prev => {
+      const ex = prev.find(c => c._key === key);
+      if (ex) return prev.map(c => c._key === key ? { ...c, qty: c.qty + 1 } : c);
+      return [...prev, { ...p, _key: key, tipo: tipoVenta, qty: 1, precio, units }];
+    });
+  };
 
-                    {/* NAVEGACIÓN INFERIOR (Ocupa todo el ancho pero centrada estéticamente) */}
-                    <nav className="fixed bottom-0 w-full bg-[#0E0E12] border-t border-gray-800 pb-4 pt-2 z-10 flex justify-center">
-                        <div className="flex justify-around w-full max-w-2xl px-2">
-                            {['Vender', 'Pedidos', 'Productos', 'Stats'].map(tab => (
-                                <button 
-                                    key={tab} 
-                                    onClick={() => setTabActivo(tab)}
-                                    className={`flex flex-col items-center gap-1 p-2 rounded-lg ${tabActivo === tab ? 'text-orange-500' : 'text-gray-500 hover:text-gray-300'}`}>
-                                    <span className="text-2xl">{tab === 'Vender' ? '🛒' : tab === 'Pedidos' ? '📋' : tab === 'Productos' ? '📦' : '📊'}</span>
-                                    <span className="text-[11px] font-bold uppercase tracking-wider">{tab}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </nav>
+  const setQty = (key, qty) => {
+    if (qty < 1) {
+      setCarrito(prev => {
+        const next = prev.filter(c => c._key !== key);
+        if (next.length === 0) setCarritoAbierto(false);
+        return next;
+      });
+    } else {
+      setCarrito(prev => prev.map(c => c._key === key ? { ...c, qty } : c));
+    }
+  };
 
-                    {/* MODAL DEL PEDIDO CORREGIDO (Estilo App, centrado en PC) */}
-                    {modalAbierto && (
-                        <div className="fixed inset-0 bg-black/80 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
-                            <div className="bg-[#1C1C22] w-full max-w-lg md:rounded-3xl rounded-t-3xl p-6 h-[85vh] md:h-auto md:max-h-[90vh] flex flex-col relative border border-gray-800">
-                                <div className="flex justify-between items-center mb-6">
-                                    <h2 className="text-2xl font-bold">Tu pedido</h2>
-                                    <button onClick={() => setModalAbierto(false)} className="bg-[#2A2A35] rounded-full p-2 w-10 h-10 flex items-center justify-center hover:bg-gray-700">✕</button>
-                                </div>
+  const totalCarrito    = carrito.reduce((s, c) => s + c.precio * c.qty, 0);
+  const totalItemsCarrito = carrito.reduce((s, c) => s + c.qty, 0);
 
-                                <div className="flex-1 overflow-y-auto hide-scrollbar space-y-4 mb-4 pr-2">
-                                    {carrito.map((item) => (
-                                        <div key={item.id} className="bg-[#121215] border border-gray-800 p-4 rounded-2xl">
-                                            <div className="flex justify-between items-start mb-4">
-                                                <div className="flex items-center gap-3">
-                                                    <span className="text-3xl">{item.icon || '📦'}</span>
-                                                    <div>
-                                                        <p className="font-bold text-gray-200 text-lg">{item.name}</p>
-                                                        <p className="text-sm text-gray-500">unidad · S/ {item.price_tienda.toFixed(2)} c/u</p>
-                                                    </div>
-                                                </div>
-                                                <button onClick={() => quitarDelCarrito(item.id)} className="text-red-500 text-sm font-bold border border-red-900/50 hover:bg-red-900/20 px-3 py-1 rounded-lg">Quitar</button>
-                                            </div>
-                                            
-                                            <div className="flex justify-between items-center">
-                                                {/* Controles de Cantidad */}
-                                                <div className="flex items-center bg-[#1C1C22] rounded-xl overflow-hidden border border-gray-700">
-                                                    <button onClick={() => cambiarCantidad(item.id, -1)} className="px-4 py-2 hover:bg-gray-700 font-bold text-lg">−</button>
-                                                    <span className="px-4 font-black text-lg w-12 text-center">{item.cantidad}</span>
-                                                    <button onClick={() => cambiarCantidad(item.id, 1)} className="px-4 py-2 hover:bg-gray-700 font-bold text-lg">+</button>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="text-xs text-gray-500 mb-1">subtotal</p>
-                                                    <p className="font-black text-xl text-orange-500">S/ {(item.price_tienda * item.cantidad).toFixed(2)}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+  /* ── CATEGORÍAS ── */
+  const cats = [...new Set(productos.map(p => p.category ?? p.cat ?? "General"))];
 
-                                <div className="border-t border-gray-800 pt-6 mt-auto">
-                                    <div className="flex justify-between items-end mb-4 px-2">
-                                        <p className="text-gray-400 text-sm">TOTAL<br/>{cantidadTotalItems} unidades · {carrito.length} productos</p>
-                                        <p className="text-4xl font-black text-orange-500">S/ {totalCarrito.toFixed(2)}</p>
-                                    </div>
-                                    <button 
-                                        onClick={procesarVenta}
-                                        disabled={procesandoPago}
-                                        className="w-full bg-orange-500 text-white p-4 rounded-2xl font-bold text-xl disabled:opacity-50 hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20">
-                                        {procesandoPago ? "⏳ Procesando..." : `Confirmar · S/ ${totalCarrito.toFixed(2)}`}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
+  const productosFiltrados = productos.filter(p => {
+    const cat = p.category ?? p.cat ?? "General";
+    const ok  = (!catActiva || cat === catActiva)
+      && (!searchTerm || p.name.toLowerCase().includes(searchTerm.toLowerCase()) || (p.sku ?? "").toLowerCase().includes(searchTerm.toLowerCase()));
+    return ok;
+  });
+
+  /* ── PROCESAR VENTA ── */
+  const procesarVenta = () => {
+    setProcesando(true);
+    const venta = {
+      order_id:     uid(),
+      seller:       canal === "tienda" ? "Cajero Tienda" : "Vendedor Live",
+      client:       canal === "tienda" ? "Cliente Mostrador" : "Cliente Live",
+      phone:        "",
+      channel:      canal,
+      subtotal:     totalCarrito,
+      discount_pct: 0,
+      total:        totalCarrito,
+      notes:        "Venta desde Balespi PRO",
+      items: carrito.map(item => ({
+        product_id:    item.id,
+        sale_type:     item.tipo,
+        qty:           item.qty,
+        price_applied: item.precio,
+      })),
+    };
+
+    fetch(`${API_URL}/registrar_venta`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify(venta),
+    })
+      .then(r => r.json())
+      .then(data => {
+        setProcesando(false);
+        if (data.estado === "exito") {
+          const total = totalCarrito;
+          setCarrito([]);
+          setCarritoAbierto(false);
+          cargarProductos();       // recarga silenciosa
+          setExito(total);
+        } else {
+          toast("err", `⛔ Error: ${data.detalle ?? "Error en BD"}`);
         }
+      })
+      .catch(err => {
+        setProcesando(false);
+        toast("err", `❌ Error de red: ${String(err).slice(0,60)}`);
+      });
+  };
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+  /* ─────────────────────────────────────────────────── */
+  if (cargando) return <Loader/>;
+
+  return (
+    <div className="app">
+      {/* Ambient */}
+      <div className="blob blob-1"/>
+      <div className="blob blob-2"/>
+
+      <Toasts toasts={toasts} rm={rmToast}/>
+
+      {/* ── TOP BAR ────────────────────────────────── */}
+      <div style={{ flexShrink:0, height:60,
+        background:"rgba(0,0,0,.6)", backdropFilter:"blur(32px) saturate(200%)",
+        WebkitBackdropFilter:"blur(32px) saturate(200%)",
+        borderBottom:"1px solid rgba(255,255,255,.06)",
+        display:"flex", alignItems:"center", justifyContent:"space-between",
+        padding:"0 18px", position:"relative", zIndex:10 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:11 }}>
+          <div style={{ width:34, height:34, borderRadius:11,
+            background:"linear-gradient(145deg,rgba(255,255,255,.1),rgba(255,255,255,.03))",
+            border:"1px solid rgba(255,255,255,.13)",
+            display:"flex", alignItems:"center", justifyContent:"center", fontSize:17,
+            animation:"float 5s ease-in-out infinite" }}>🛒</div>
+          <div>
+            <div style={{ fontSize:13, fontWeight:800, letterSpacing:-0.3 }}>Balespi Import</div>
+            <div style={{ fontSize:10, color:ACCENT, fontWeight:600, letterSpacing:0.5 }}>Cajero Tienda</div>
+          </div>
+        </div>
+        {/* Selector canal */}
+        <div style={{ display:"flex", background:"rgba(255,255,255,.07)", borderRadius:12,
+          border:"1px solid rgba(255,255,255,.1)", overflow:"hidden" }}>
+          {[{v:"tienda",l:"🏪"},{v:"live",l:"📱"}].map(opt => (
+            <button key={opt.v} onClick={() => setCanal(opt.v)} className="hap" style={{
+              padding:"7px 14px", background:canal===opt.v?ACCENT:"transparent",
+              border:"none", color:canal===opt.v?"#000":"rgba(255,255,255,.4)",
+              fontSize:13, fontWeight:700, cursor:"pointer",
+              transition:"all .2s" }}>
+              {opt.l} {opt.v==="tienda"?"Tienda":"Live"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── CONTENIDO ──────────────────────────────── */}
+      <div className="content" style={{ paddingBottom: carrito.length > 0 ? 160 : 80 }}>
+        <div style={{ position:"relative", zIndex:1 }}>
+
+          {/* ══ TAB: VENDER ══ */}
+          {tabActivo === "Vender" && (
+            exito !== null ? (
+              <PantallaExito total={exito} onNuevaVenta={() => setExito(null)}/>
+            ) : (
+              <div style={{ padding:"16px 16px 0" }}>
+                <h2 style={{ fontSize:20, fontWeight:900, letterSpacing:-0.5, marginBottom:14 }}>
+                  ¿Qué vas a vender?
+                </h2>
+
+                {/* TIPO DE VENTA */}
+                <div style={{ display:"flex", gap:8, marginBottom:14 }}>
+                  {TIPOS.map(t => {
+                    const on = tipoVenta === t.k;
+                    return (
+                      <button key={t.k} onClick={() => setTipoVenta(t.k)} className="hap" style={{
+                        flex:1, background:on ? ACCENT : "rgba(255,255,255,.06)",
+                        border:`1.5px solid ${on ? ACCENT : "rgba(255,255,255,.08)"}`,
+                        borderRadius:14, padding:"10px 4px", cursor:"pointer",
+                        transition:"all .25s cubic-bezier(.34,1.2,.64,1)",
+                        boxShadow:on ? `0 6px 20px ${ACCENT}40` : "none" }}>
+                        <div style={{ fontSize:18, marginBottom:2 }}>{t.e}</div>
+                        <div style={{ fontSize:11, fontWeight:on?800:500,
+                          color:on?"#000":"rgba(255,255,255,.6)", transition:"color .2s" }}>{t.l}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* BUSCADOR */}
+                <div style={{ position:"relative", marginBottom:12 }}>
+                  <span style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)",
+                    fontSize:16, pointerEvents:"none", opacity:.4 }}>🔍</span>
+                  <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                    placeholder="Buscar producto..."
+                    style={{ width:"100%", background:"rgba(255,255,255,.07)",
+                      border:"1px solid rgba(255,255,255,.1)", borderRadius:16,
+                      padding:"12px 14px 12px 42px", color:"#fff", fontSize:14, outline:"none" }}
+                    onFocus={e  => { e.target.style.borderColor="rgba(255,255,255,.25)"; e.target.style.background="rgba(255,255,255,.1)"; }}
+                    onBlur={e   => { e.target.style.borderColor="rgba(255,255,255,.1)";  e.target.style.background="rgba(255,255,255,.07)"; }}/>
+                  {searchTerm && (
+                    <button onClick={() => setSearchTerm("")} style={{ position:"absolute", right:12, top:"50%",
+                      transform:"translateY(-50%)", background:"rgba(255,255,255,.15)",
+                      border:"none", borderRadius:50, width:22, height:22,
+                      color:"rgba(255,255,255,.6)", cursor:"pointer", fontSize:12,
+                      display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
+                  )}
+                </div>
+
+                {/* CATEGORÍAS */}
+                {cats.length > 1 && (
+                  <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:4, marginBottom:12 }}>
+                    {["Todos", ...cats].map(c => {
+                      const on = (c==="Todos" && !catActiva) || (c === catActiva);
+                      return (
+                        <button key={c} onClick={() => setCatActiva(c==="Todos"?null:c)} className="hap" style={{
+                          background: on ? `${ACCENT}22` : "rgba(255,255,255,.05)",
+                          border:`1px solid ${on ? ACCENT+"55" : "rgba(255,255,255,.08)"}`,
+                          borderRadius:50, padding:"7px 14px",
+                          color: on ? ACCENT : "rgba(255,255,255,.4)",
+                          fontSize:12, fontWeight:on?700:500, cursor:"pointer",
+                          whiteSpace:"nowrap", flexShrink:0, transition:"all .2s" }}>
+                          {c}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* GRID PRODUCTOS */}
+                {productosFiltrados.length === 0 && (
+                  <div style={{ textAlign:"center", color:"rgba(255,255,255,.25)", padding:"50px 0" }}>
+                    <div style={{ fontSize:36, marginBottom:10, opacity:.3 }}>🔍</div>
+                    Sin resultados para "{searchTerm}"
+                  </div>
+                )}
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, paddingBottom:8 }}>
+                  {productosFiltrados.map(p => {
+                    const stockAct  = stockCanal(p);
+                    const precio    = getPrice(p, tipoVenta, canal);
+                    const itemCarr  = carrito.find(c => c._key === `${p.id}-${tipoVenta}`);
+                    const qty       = itemCarr?.qty ?? 0;
+                    const sinStock  = stockAct <= 0;
+                    const stockBajo = stockAct > 0 && stockAct <= (p.stock_min ?? 10);
+
+                    return (
+                      <div key={p.id} style={{
+                        background: qty>0
+                          ? `linear-gradient(145deg,${ACCENT}18,${ACCENT}08)`
+                          : "rgba(255,255,255,.05)",
+                        border:`1.5px solid ${qty>0 ? ACCENT+"55" : "rgba(255,255,255,.08)"}`,
+                        borderRadius:22, overflow:"hidden",
+                        boxShadow: qty>0 ? `0 8px 32px ${ACCENT}20` : "0 4px 16px rgba(0,0,0,.3)",
+                        transition:"all .3s cubic-bezier(.34,1.2,.64,1)",
+                        position:"relative", opacity:sinStock?.35:1 }}>
+
+                        {/* Badge stock */}
+                        <div style={{ position:"absolute", top:9, right:9,
+                          background: sinStock?"rgba(255,69,58,.2)":stockBajo?"rgba(255,159,10,.15)":"rgba(0,0,0,.4)",
+                          border:`1px solid ${sinStock?"rgba(255,69,58,.4)":stockBajo?"rgba(255,159,10,.3)":"rgba(255,255,255,.08)"}`,
+                          borderRadius:8, padding:"3px 8px", fontSize:9, fontWeight:800,
+                          color:sinStock?"#ff453a":stockBajo?"#ff9f0a":"rgba(255,255,255,.5)" }}>
+                          {sinStock ? "AGOTADO" : `${stockAct}u`}
+                        </div>
+                        {/* Badge promo */}
+                        {p.promo_pct > 0 && (
+                          <div style={{ position:"absolute", top:9, left:9,
+                            background:"linear-gradient(135deg,#ff375f,#ff9f0a)",
+                            borderRadius:8, padding:"2px 8px", fontSize:9, fontWeight:900, color:"#fff" }}>
+                            🔥 -{p.promo_pct}%
+                          </div>
+                        )}
+
+                        <div style={{ padding:"20px 14px 10px" }}>
+                          {/* Foto o emoji */}
+                          {p.photo_url ? (
+                            <div style={{ width:60, height:60, borderRadius:14, overflow:"hidden",
+                              margin:"0 auto 8px", border:"1px solid rgba(255,255,255,.1)" }}>
+                              <img src={p.photo_url} alt={p.name} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize:40, textAlign:"center", marginBottom:8 }}>{p.icon || "📦"}</div>
+                          )}
+                          <div style={{ fontWeight:700, fontSize:13, textAlign:"center",
+                            lineHeight:1.3, marginBottom:6, color:"rgba(255,255,255,.9)" }}>{p.name}</div>
+                          <div style={{ textAlign:"center" }}>
+                            <span style={{ fontSize:25, fontWeight:900, letterSpacing:-1,
+                              color: qty>0 ? ACCENT : "#fff", transition:"color .2s" }}>{f(precio)}</span>
+                          </div>
+                          <div style={{ textAlign:"center", fontSize:10, color:"rgba(255,255,255,.28)", marginTop:2 }}>
+                            {tipoVenta==="unidad" ? "por unidad"
+                            :tipoVenta==="docena"  ? `docena · ${p.per_dozen??12}u`
+                            :                       `cajón · ${p.per_box??20}u`}
+                          </div>
+                        </div>
+
+                        {/* Controles +/- */}
+                        <div style={{ padding:"0 10px 12px" }}>
+                          {qty === 0 ? (
+                            <button onClick={() => !sinStock && addToCart(p)} className="hap" style={{
+                              width:"100%",
+                              background: sinStock ? "rgba(255,255,255,.04)" : "rgba(255,255,255,.1)",
+                              border:`1px solid ${sinStock ? "rgba(255,255,255,.05)" : "rgba(255,255,255,.15)"}`,
+                              borderRadius:12, padding:"12px",
+                              color: sinStock ? "rgba(255,255,255,.2)" : "rgba(255,255,255,.9)",
+                              fontSize:14, fontWeight:700,
+                              cursor: sinStock ? "not-allowed" : "pointer" }}>
+                              {sinStock ? "Sin stock" : "+ Agregar"}
+                            </button>
+                          ) : (
+                            <div style={{ display:"flex", alignItems:"center",
+                              background:"rgba(0,0,0,.35)", borderRadius:12,
+                              border:`1px solid ${ACCENT}40`, overflow:"hidden" }}>
+                              <button onClick={() => setQty(`${p.id}-${tipoVenta}`, qty-1)} className="hap" style={{
+                                flex:1, background:"none", border:"none", padding:"12px",
+                                color:"rgba(255,255,255,.6)", fontSize:22, fontWeight:300, cursor:"pointer" }}>−</button>
+                              <div style={{ flex:1, textAlign:"center", fontWeight:900, fontSize:20, color:ACCENT,
+                                borderLeft:`1px solid ${ACCENT}30`, borderRight:`1px solid ${ACCENT}30`,
+                                padding:"12px 4px" }}>{qty}</div>
+                              <button onClick={() => setQty(`${p.id}-${tipoVenta}`, qty+1)} className="hap" style={{
+                                flex:1, background:"none", border:"none", padding:"12px",
+                                color:ACCENT, fontSize:22, fontWeight:700, cursor:"pointer" }}>+</button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )
+          )}
+
+          {/* ══ TABS EN CONSTRUCCIÓN ══ */}
+          {tabActivo !== "Vender" && (
+            <div style={{ padding:"80px 32px", textAlign:"center", color:"rgba(255,255,255,.25)" }}>
+              <div style={{ fontSize:52, marginBottom:16, opacity:.3 }}>🚧</div>
+              <p style={{ fontSize:16, fontWeight:600 }}>Módulo de {tabActivo}</p>
+              <p style={{ fontSize:13, marginTop:6 }}>En construcción · Fase 3</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── BOTÓN FLOTANTE CARRITO ───────────────────── */}
+      {carrito.length > 0 && tabActivo === "Vender" && exito === null && (
+        <div style={{ position:"fixed", bottom:80, left:"50%", transform:"translateX(-50%)",
+          width:"calc(100% - 28px)", maxWidth:452, zIndex:500,
+          animation:"slideUp .3s cubic-bezier(.34,1.2,.64,1) both" }}>
+          <button onClick={() => setCarritoAbierto(true)} className="hap" style={{
+            width:"100%", background:GRAD, border:"none", borderRadius:22,
+            padding:"17px 22px", display:"flex", alignItems:"center", justifyContent:"space-between",
+            cursor:"pointer", boxShadow:`0 16px 48px ${ACCENT}50` }}>
+            <div style={{ background:"rgba(0,0,0,.25)", borderRadius:12, width:40, height:40,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontWeight:900, fontSize:17, color:"#fff" }}>{totalItemsCarrito}</div>
+            <div style={{ textAlign:"center", flex:1 }}>
+              <div style={{ fontWeight:800, fontSize:16, color:"#fff" }}>Ver pedido</div>
+              <div style={{ fontSize:12, color:"rgba(255,255,255,.7)", marginTop:1 }}>
+                {carrito.length} producto{carrito.length>1?"s":""}
+              </div>
+            </div>
+            <div style={{ fontWeight:900, fontSize:18, color:"#fff", letterSpacing:-0.5 }}>{f(totalCarrito)}</div>
+          </button>
+        </div>
+      )}
+
+      {/* ── BOTTOM NAV ──────────────────────────────── */}
+      <div style={{ flexShrink:0, height:70,
+        background:"rgba(0,0,0,.65)", backdropFilter:"blur(40px) saturate(200%)",
+        WebkitBackdropFilter:"blur(40px) saturate(200%)",
+        borderTop:"1px solid rgba(255,255,255,.06)",
+        display:"flex", position:"relative", zIndex:10 }}>
+        {[
+          {k:"Vender",   i:"🛒"},
+          {k:"Pedidos",  i:"📋"},
+          {k:"Productos",i:"📦"},
+          {k:"Stats",    i:"📊"},
+        ].map(n => {
+          const active = tabActivo === n.k;
+          return (
+            <button key={n.k} onClick={() => setTabActivo(n.k)} className="hap" style={{
+              flex:1, background:"none", border:"none", cursor:"pointer",
+              display:"flex", flexDirection:"column", alignItems:"center",
+              justifyContent:"center", gap:3, position:"relative" }}>
+              <span style={{ fontSize:22,
+                transform: active ? "scale(1.15)" : "scale(1)",
+                transition:"transform .3s cubic-bezier(.34,1.56,.64,1)" }}>{n.i}</span>
+              <span style={{ fontSize:10, fontWeight:active?700:400,
+                color:active?ACCENT:"rgba(255,255,255,.3)", transition:"color .2s",
+                textTransform:"uppercase", letterSpacing:.5 }}>{n.k}</span>
+              {active && (
+                <div style={{ position:"absolute", bottom:0, left:"22%", right:"22%",
+                  height:2.5, background:ACCENT, borderRadius:"2px 2px 0 0",
+                  boxShadow:`0 0 10px ${ACCENT}80` }}/>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── SHEET CARRITO ────────────────────────────── */}
+      <Sheet open={carritoAbierto} onClose={() => setCarritoAbierto(false)} title="Tu pedido">
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+
+          {/* Items */}
+          {carrito.map(item => (
+            <div key={item._key} style={{ background:"rgba(255,255,255,.04)",
+              border:"1px solid rgba(255,255,255,.07)", borderRadius:20, padding:16 }}>
+              <div style={{ display:"flex", gap:12, alignItems:"center", marginBottom:12 }}>
+                {item.photo_url
+                  ? <img src={item.photo_url} alt={item.name} style={{ width:40, height:40, borderRadius:12, objectFit:"cover" }}/>
+                  : <span style={{ fontSize:28 }}>{item.icon || "📦"}</span>
+                }
+                <div style={{ flex:1 }}>
+                  <div style={{ fontWeight:700, fontSize:14 }}>{item.name}</div>
+                  <div style={{ fontSize:11, color:"rgba(255,255,255,.35)", marginTop:2 }}>
+                    {item.tipo==="unidad"?"unidad":item.tipo==="docena"?`docena (${item.units}u)`:`cajón (${item.units}u)`}
+                    {" · "}{f(item.precio)} c/u
+                  </div>
+                </div>
+                <button onClick={() => setQty(item._key, 0)} className="hap" style={{
+                  background:"rgba(255,69,58,.15)", border:"1px solid rgba(255,69,58,.3)",
+                  borderRadius:9, padding:"5px 10px", color:"#ff453a", fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                  Quitar
+                </button>
+              </div>
+              {/* Qty control */}
+              <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                <div style={{ display:"flex", alignItems:"center", background:"rgba(0,0,0,.4)",
+                  borderRadius:12, border:"1px solid rgba(255,255,255,.08)", overflow:"hidden" }}>
+                  <button onClick={() => setQty(item._key, item.qty-1)} className="hap" style={{ background:"none", border:"none",
+                    padding:"10px 16px", color:"rgba(255,255,255,.6)", fontSize:20, cursor:"pointer", fontWeight:300 }}>−</button>
+                  <span style={{ fontWeight:800, fontSize:18, padding:"0 4px", minWidth:28, textAlign:"center" }}>{item.qty}</span>
+                  <button onClick={() => setQty(item._key, item.qty+1)} className="hap" style={{ background:"none", border:"none",
+                    padding:"10px 16px", color:ACCENT, fontSize:20, cursor:"pointer", fontWeight:700 }}>+</button>
+                </div>
+                <div style={{ flex:1, textAlign:"right" }}>
+                  <div style={{ fontSize:10, color:"rgba(255,255,255,.3)" }}>subtotal</div>
+                  <div style={{ fontWeight:900, fontSize:22, color:ACCENT, letterSpacing:-0.5 }}>{f(item.precio * item.qty)}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Total */}
+          <div style={{ background:"rgba(255,255,255,.04)", border:"1px solid rgba(255,255,255,.07)",
+            borderRadius:20, padding:"16px 18px" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,.35)" }}>TOTAL</div>
+                <div style={{ fontSize:11, color:"rgba(255,255,255,.25)", marginTop:1 }}>
+                  {totalItemsCarrito} unidades · canal {canal}
+                </div>
+              </div>
+              <div style={{ fontSize:34, fontWeight:900, color:ACCENT, letterSpacing:-1 }}>{f(totalCarrito)}</div>
+            </div>
+          </div>
+
+          {/* Botón confirmar */}
+          <button onClick={procesarVenta} disabled={procesando} className="hap" style={{
+            background: procesando ? "rgba(255,159,10,.3)" : GRAD,
+            color: "#fff", border:"none", borderRadius:20, padding:"18px",
+            fontSize:17, fontWeight:800, cursor:procesando?"not-allowed":"pointer",
+            boxShadow:procesando ? "none" : `0 12px 40px ${ACCENT}50`,
+            display:"flex", alignItems:"center", justifyContent:"center", gap:10,
+            transition:"all .3s" }}>
+            {procesando ? (
+              <>
+                <div style={{ width:20, height:20, border:"2px solid rgba(255,255,255,.3)", borderTop:"2px solid #fff",
+                  borderRadius:"50%", animation:"spin 1s linear infinite" }}/>
+                Procesando en BD…
+              </>
+            ) : (
+              `Confirmar · ${f(totalCarrito)}`
+            )}
+          </button>
+        </div>
+      </Sheet>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(React.createElement(App));
+</script>
 </body>
 </html>
