@@ -3,13 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Balespi Import - POS Manual</title>
+    <title>Balespi Import PRO</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Estilos base para simular una App Móvil */
+        body { background-color: #000; }
+        .app-container { max-width: 480px; margin: 0 auto; background-color: #0E0E12; min-height: 100vh; position: relative; color: white; font-family: system-ui, -apple-system, sans-serif; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
 </head>
-<body class="bg-gray-100">
+<body>
     <div id="root"></div>
 
     <script type="text/babel">
@@ -19,46 +25,58 @@
             const [productos, setProductos] = useState([]);
             const [carrito, setCarrito] = useState([]);
             const [cargando, setCargando] = useState(true);
+            const [procesandoPago, setProcesandoPago] = useState(false);
             
-            // NUEVOS ESTADOS PARA EL CONTROL MANUAL
+            // UI States
+            const [tabActivo, setTabActivo] = useState("Vender");
+            const [modalAbierto, setModalAbierto] = useState(false);
+
+            // Contexto de Venta
             const [canal, setCanal] = useState("tienda");
-            const [vendedora, setVendedora] = useState("");
-            const [cliente, setCliente] = useState("");
+            const [vendedora, setVendedora] = useState("Vendedora Tienda");
 
             const API_URL = "https://balespi-api.onrender.com";
 
-            useEffect(() => {
+            // Función para cargar/recargar productos sin parpadear la web
+            const cargarProductos = () => {
                 fetch(`${API_URL}/productos`)
                     .then(res => res.json())
                     .then(data => {
                         setProductos(data);
                         setCargando(false);
                     });
+            };
+
+            useEffect(() => {
+                cargarProductos();
             }, []);
 
             const agregarAlCarrito = (p) => {
                 setCarrito([...carrito, { ...p, cantidad: 1 }]);
             };
 
-            const procesarVenta = () => {
-                if (!vendedora) {
-                    alert("⚠️ Por favor ingresa el nombre de la vendedora.");
-                    return;
-                }
+            const quitarDelCarrito = (index) => {
+                const nuevoCarrito = [...carrito];
+                nuevoCarrito.splice(index, 1);
+                setCarrito(nuevoCarrito);
+                if (nuevoCarrito.length === 0) setModalAbierto(false);
+            };
 
-                // Usamos el precio según el canal (asumimos price_tienda para ambos por ahora, luego lo ajustamos si hay price_live)
+            const procesarVenta = () => {
+                setProcesandoPago(true); // Cambia el botón a "Procesando..."
+                
                 const totalCalculado = carrito.reduce((sum, item) => sum + item.price_tienda, 0);
                 
                 const venta = {
                     order_id: "V-" + Math.floor(Math.random() * 10000),
                     seller: vendedora,
-                    client: cliente || "Cliente Mostrador", // Si lo dejan en blanco, usa este por defecto
-                    phone: "000000000",
-                    channel: canal, // Envía 'tienda' o 'live' a tu motor Python
+                    client: "Cliente Mostrador",
+                    phone: "",
+                    channel: canal,
                     subtotal: totalCalculado,
                     discount_pct: 0,
                     total: totalCalculado,
-                    notes: `Venta manual desde POS - Canal: ${canal}`,
+                    notes: "Venta desde Balespi PRO",
                     items: carrito.map(item => ({
                         product_id: item.id,
                         sale_type: "unidad",
@@ -74,66 +92,63 @@
                 })
                 .then(res => res.json())
                 .then(data => {
+                    setProcesandoPago(false);
                     if (data.estado === "exito") {
-                        alert(`✅ ¡Venta registrada con éxito!\nCanal: ${canal.toUpperCase()}\nVendedora: ${vendedora}`);
+                        // ÉXITO FLUIDO: Limpiamos carrito, cerramos modal, recargamos BD silenciosamente
                         setCarrito([]);
-                        setCliente("");
-                        window.location.reload(); 
+                        setModalAbierto(false);
+                        cargarProductos(); 
+                        alert("✅ Venta registrada exitosamente");
                     } else {
-                        alert("⛔ ERROR DE SUPABASE DETECTADO ⛔\n\nDetalle:\n" + data.detalle);
+                        alert("⛔ ERROR EN BD:\n" + data.detalle);
                     }
                 })
-                .catch(err => alert("❌ ERROR DE CONEXIÓN ❌\n" + err));
+                .catch(err => {
+                    setProcesandoPago(false);
+                    alert("❌ ERROR DE RED:\n" + err);
+                });
             };
 
-            if (cargando) return <div className="p-10 text-center text-xl font-bold animate-pulse text-blue-600">Cargando Sistema Balespi...</div>;
+            const totalCarrito = carrito.reduce((sum, i) => sum + i.price_tienda, 0);
+
+            if (cargando) return <div className="app-container flex items-center justify-center h-screen"><p className="text-orange-500 font-bold animate-pulse text-xl">Cargando Balespi PRO...</p></div>;
 
             return (
-                <div className="p-4 max-w-5xl mx-auto font-sans">
-                    <h1 className="text-3xl font-extrabold text-blue-800 mb-6 text-center shadow-sm p-3 bg-white rounded-lg">Balespi Import - Terminal POS</h1>
-                    
-                    {/* PANEL DE CONFIGURACIÓN DE VENTA */}
-                    <div className="bg-white p-4 rounded-lg shadow mb-6 border-t-4 border-blue-600 flex flex-wrap gap-4 items-end">
-                        <div className="flex-1 min-w-[200px]">
-                            <label className="block text-sm font-bold text-gray-700 mb-1">Vendedora *</label>
-                            <input type="text" value={vendedora} onChange={e => setVendedora(e.target.value)} placeholder="Ej. Ana, Lucero..." className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500" />
+                <div className="app-container pb-32">
+                    {/* CABECERA */}
+                    <header className="p-4 border-b border-gray-800 flex justify-between items-center bg-[#0E0E12] sticky top-0 z-10">
+                        <div>
+                            <h1 className="font-bold text-lg text-white">Balespi Import</h1>
+                            <p className="text-xs text-orange-500">Cajero Tienda</p>
                         </div>
-                        <div className="flex-1 min-w-[200px]">
-                            <label className="block text-sm font-bold text-gray-700 mb-1">Cliente</label>
-                            <input type="text" value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nombre del cliente" className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500" />
-                        </div>
-                        <div className="flex-1 min-w-[200px]">
-                            <label className="block text-sm font-bold text-gray-700 mb-1">Canal de Venta</label>
-                            <select value={canal} onChange={e => setCanal(e.target.value)} className="w-full border p-2 rounded bg-blue-50 font-bold text-blue-800">
-                                <option value="tienda">🏬 Tienda Física</option>
-                                <option value="live">🔴 Transmisión Live</option>
-                            </select>
-                        </div>
-                    </div>
+                        <select 
+                            value={canal} 
+                            onChange={e => setCanal(e.target.value)}
+                            className="bg-[#1C1C22] text-sm text-gray-300 p-2 rounded border border-gray-700 outline-none">
+                            <option value="tienda">🏢 Tienda</option>
+                            <option value="live">🔴 Live/WA</option>
+                        </select>
+                    </header>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* LISTA DE PRODUCTOS */}
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                            <h2 className="text-xl font-bold mb-4 text-gray-800 border-b pb-2">Catálogo ({canal.toUpperCase()})</h2>
-                            <div className="space-y-3">
+                    {/* VISTA PRINCIPAL (VENDER) */}
+                    {tabActivo === "Vender" && (
+                        <div className="p-4">
+                            <h2 className="text-xl font-bold mb-4">¿Qué vas a vender?</h2>
+                            
+                            <div className="grid grid-cols-2 gap-3">
                                 {productos.map(p => {
-                                    // Lógica dinámica para mostrar el stock correcto
                                     const stockActual = canal === "tienda" ? p.stock_tienda : p.stock_live;
-                                    const alertaStock = stockActual < 10 ? "text-red-500 font-bold" : "text-gray-600";
-
                                     return (
-                                        <div key={p.id} className="bg-white p-4 rounded shadow-sm border border-gray-200 flex justify-between items-center hover:border-blue-300 transition-colors">
-                                            <div>
-                                                <p className="font-bold text-lg">{p.name}</p>
-                                                <p className="text-sm">
-                                                    Stock {canal}: <span className={alertaStock}>{stockActual} unid.</span>
-                                                </p>
-                                                <p className="text-blue-600 font-bold">S/ {p.price_tienda}</p>
-                                            </div>
+                                        <div key={p.id} className="bg-[#1C1C22] p-4 rounded-xl border border-gray-800 flex flex-col items-center text-center">
+                                            <div className="text-3xl mb-2">{p.icon || '📦'}</div>
+                                            <p className="font-bold text-sm text-gray-200 mb-1">{p.name}</p>
+                                            <p className="font-black text-lg text-white mb-1">S/ {p.price_tienda.toFixed(2)}</p>
+                                            <p className="text-xs text-gray-500 mb-3">Stock: {stockActual}</p>
+                                            
                                             <button 
                                                 onClick={() => agregarAlCarrito(p)}
                                                 disabled={stockActual <= 0}
-                                                className="bg-green-500 text-white px-4 py-2 rounded font-bold shadow hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                                                className="w-full bg-[#2A2A35] text-white py-2 rounded-lg text-sm font-bold hover:bg-gray-700 disabled:opacity-50">
                                                 {stockActual <= 0 ? "Agotado" : "+ Agregar"}
                                             </button>
                                         </div>
@@ -141,39 +156,86 @@
                                 })}
                             </div>
                         </div>
+                    )}
 
-                        {/* CARRITO / RESUMEN */}
-                        <div className="bg-blue-50 p-6 rounded-lg border-2 border-blue-200 shadow-md h-fit sticky top-4">
-                            <h2 className="text-2xl font-bold mb-4 text-blue-900 border-b border-blue-200 pb-2">Resumen de Venta</h2>
-                            
-                            {carrito.length === 0 ? (
-                                <p className="text-gray-500 italic text-center py-8">El carrito está vacío</p>
-                            ) : (
-                                <div className="space-y-2 mb-6 max-h-64 overflow-y-auto">
+                    {/* VISTAS EN CONSTRUCCIÓN (Fase 3) */}
+                    {tabActivo !== "Vender" && (
+                        <div className="p-10 text-center text-gray-500">
+                            <p className="text-4xl mb-4">🚧</p>
+                            <p>Módulo de {tabActivo} en construcción (Fase 3)</p>
+                        </div>
+                    )}
+
+                    {/* BARRA FLOTANTE NARANJA (Carrito) */}
+                    {carrito.length > 0 && (
+                        <div className="fixed bottom-[80px] w-full max-w-[480px] px-4 z-20">
+                            <button 
+                                onClick={() => setModalAbierto(true)}
+                                className="w-full bg-orange-500 text-white p-4 rounded-xl font-bold flex justify-between items-center shadow-lg shadow-orange-500/30 transform transition active:scale-95">
+                                <div className="flex items-center gap-3">
+                                    <span className="bg-orange-700 px-3 py-1 rounded-lg">{carrito.length}</span>
+                                    <span>Ver pedido</span>
+                                </div>
+                                <span className="text-xl">S/ {totalCarrito.toFixed(2)}</span>
+                            </button>
+                        </div>
+                    )}
+
+                    {/* NAVEGACIÓN INFERIOR (Bottom Nav) */}
+                    <nav className="fixed bottom-0 w-full max-w-[480px] bg-[#0E0E12] border-t border-gray-800 flex justify-around pb-6 pt-3 px-2 z-10">
+                        {['Vender', 'Pedidos', 'Productos', 'Stats'].map(tab => (
+                            <button 
+                                key={tab} 
+                                onClick={() => setTabActivo(tab)}
+                                className={`flex flex-col items-center gap-1 w-1/4 ${tabActivo === tab ? 'text-orange-500' : 'text-gray-500'}`}>
+                                <span className="text-xl">{tab === 'Vender' ? '🛒' : tab === 'Pedidos' ? '📋' : tab === 'Productos' ? '📦' : '📊'}</span>
+                                <span className="text-[10px] font-bold uppercase tracking-wider">{tab}</span>
+                            </button>
+                        ))}
+                    </nav>
+
+                    {/* MODAL DEL PEDIDO */}
+                    {modalAbierto && (
+                        <div className="fixed inset-0 bg-black/80 z-50 flex flex-col justify-end max-w-[480px] mx-auto">
+                            <div className="bg-[#1C1C22] w-full rounded-t-3xl p-6 h-[80vh] flex flex-col">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-2xl font-bold">Tu pedido</h2>
+                                    <button onClick={() => setModalAbierto(false)} className="bg-[#2A2A35] rounded-full p-2 w-10 h-10 flex items-center justify-center">✕</button>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto hide-scrollbar space-y-3 mb-4">
                                     {carrito.map((item, idx) => (
-                                        <div key={idx} className="flex justify-between bg-white p-2 rounded border border-blue-100">
-                                            <span className="text-gray-800">{item.name}</span>
-                                            <span className="font-bold text-blue-800">S/ {item.price_tienda}</span>
+                                        <div key={idx} className="bg-[#121215] border border-gray-800 p-4 rounded-xl flex justify-between items-center">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-2xl">{item.icon || '📦'}</span>
+                                                <div>
+                                                    <p className="font-bold text-gray-200">{item.name}</p>
+                                                    <p className="text-xs text-gray-500">S/ {item.price_tienda.toFixed(2)} c/u</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <button onClick={() => quitarDelCarrito(idx)} className="text-red-500 text-xs font-bold border border-red-900 px-2 py-1 rounded mb-1">Quitar</button>
+                                                <p className="font-bold text-orange-500">S/ {item.price_tienda.toFixed(2)}</p>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
-                            )}
 
-                            <div className="mt-4 pt-4 border-t-2 border-blue-200">
-                                <div className="flex justify-between items-center mb-6">
-                                    <span className="text-xl text-gray-700">Total a cobrar:</span>
-                                    <span className="text-3xl font-black text-blue-700">S/ {carrito.reduce((sum, i) => sum + i.price_tienda, 0)}</span>
+                                <div className="border-t border-gray-800 pt-4 mt-auto">
+                                    <div className="flex justify-between items-end mb-4">
+                                        <p className="text-gray-400 text-sm">TOTAL<br/>{carrito.length} productos</p>
+                                        <p className="text-3xl font-black text-orange-500">S/ {totalCarrito.toFixed(2)}</p>
+                                    </div>
+                                    <button 
+                                        onClick={procesarVenta}
+                                        disabled={procesandoPago}
+                                        className="w-full bg-orange-500 text-white p-4 rounded-xl font-bold text-lg disabled:opacity-50 disabled:bg-orange-800 transition-colors">
+                                        {procesandoPago ? "⏳ Procesando en BD..." : `Confirmar · S/ ${totalCarrito.toFixed(2)}`}
+                                    </button>
                                 </div>
-                                
-                                <button 
-                                    onClick={procesarVenta}
-                                    disabled={carrito.length === 0}
-                                    className="w-full bg-blue-700 text-white py-4 rounded-xl font-extrabold text-lg shadow-lg hover:bg-blue-800 disabled:bg-gray-400 disabled:shadow-none transition-all transform active:scale-95">
-                                    💰 REGISTRAR PAGO
-                                </button>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             );
         }
