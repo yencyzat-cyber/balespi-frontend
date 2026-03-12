@@ -53,7 +53,7 @@ const { useState, useEffect, useCallback, useMemo } = React;
 const API_URL = "https://balespi-api.onrender.com";
 
 const ROLES = {
-  admin:    {key:"admin",    label:"Administrador", sub:"Acceso completo",          icon:"✦", accent:"#bf5af2", grad:"linear-gradient(135deg,#bf5af2,#9040d0)"},
+  admin:    {key:"admin",    label:"Administrador", sub:"Acceso completo",        icon:"✦", accent:"#bf5af2", grad:"linear-gradient(135deg,#bf5af2,#9040d0)"},
   vendedor: {key:"vendedor", label:"Vendedor Live",  sub:"Live · TikTok · WhatsApp", icon:"◈", accent:"#30d158", grad:"linear-gradient(135deg,#30d158,#28b84c)"},
   tienda:   {key:"tienda",   label:"Cajero Tienda",  sub:"Ventas en mostrador",      icon:"◉", accent:"#ff9f0a", grad:"linear-gradient(135deg,#ff9f0a,#e5850a)"},
 };
@@ -330,6 +330,7 @@ function Venta({role,productos,recargarProductos,orders,setOrders,transfers,setT
       phone:isLive?client.phone:"",
       channel,subtotal,discount_pct:discountPct,total,
       notes:notes||"Venta desde Balespi PRO",
+      internal_note: internalNote, // <--- COMPATIBILIDAD AÑADIDA AQUÍ
       items:cart.map(c=>{
         const p=productos.find(x=>x.id===c.pid);
         return{product_id:c.pid,sale_type:c.type,qty:c.qty,price_applied:p?getPrice(p):0};
