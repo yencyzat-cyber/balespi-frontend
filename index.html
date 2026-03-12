@@ -700,7 +700,6 @@ function FormProducto({prod,onSave,onClose,accent,allCats}){
     if(!f_.name.trim()){alert("El nombre es obligatorio");return;}
     const saved={
       ...f_,
-      id: f_.id || Date.now(),
       sku: f_.sku||String(Date.now()).slice(-6),
       promo: promoPct>0?{pct:promoPct,label:`${promoPct}% OFF`}:null,
     };
@@ -839,8 +838,8 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
   const [stockP,setStockP]=useState(null);
   const [stockMode,setStockMode]=useState("tienda");
   const [delta,setDelta]=useState("");
-  const [editP,setEditP]=useState(null);   // null=cerrado, EMPTY_PROD()=nuevo, prod=editar
-  const [vista,setVista]=useState("grid"); // "grid"|"lista"
+  const [editP,setEditP]=useState(null);
+  const [vista,setVista]=useState("grid");
 
   const cats=[...new Set(productos.map(p=>p.cat).filter(Boolean))];
   const filtered=useMemo(()=>productos.filter(p=>
@@ -848,21 +847,47 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
     (!search||p.name.toLowerCase().includes(search.toLowerCase())||(p.sku||"").toLowerCase().includes(search.toLowerCase()))
   ),[productos,catFilter,search]);
 
+  // AHORA SÍ CONECTA AL BACKEND PYTHON EN VEZ DE SOLO MEMORIA LOCAL
   const adjustStock=(p,d)=>{
     const n=Math.max(0,Number(d));if(n<=0){toast("err","Ingresá un número mayor a 0");return;}
-    setProductos(prev=>prev.map(x=>{if(x.id!==p.id)return x;if(stockMode==="tienda")return{...x,stockTienda:x.stockTienda+n};if(stockMode==="live")return{...x,stockLive:x.stockLive+n};return{...x,stockTienda:x.stockTienda+n,stockLive:x.stockLive+n};}));
-    toast("ok",`📦 +${n}u confirmado: ${p.name}`);setStockP(null);setDelta("");setStockMode("tienda");
+    
+    const newTienda = stockMode === "tienda" || stockMode === "ambos" ? p.stockTienda + n : p.stockTienda;
+    const newLive = stockMode === "live" || stockMode === "ambos" ? p.stockLive + n : p.stockLive;
+
+    fetch(`${API_URL}/actualizar_stock`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: p.id, stock_tienda: newTienda, stock_live: newLive })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if(data.estado === "exito"){
+        toast("ok", `📦 Stock actualizado`);
+        recargarProductos();
+        setStockP(null); setDelta(""); setStockMode("tienda");
+      } else {
+        toast("err", `⛔ Error: ${data.detalle}`);
+      }
+    });
   };
 
+  // AHORA SÍ CONECTA AL BACKEND PYTHON AL CREAR/EDITAR
   const saveProduct=prod=>{
-    if(prod.id&&productos.find(x=>x.id===prod.id)){
-      setProductos(prev=>prev.map(x=>x.id===prod.id?prod:x));
-      toast("ok",`✅ "${prod.name}" actualizado`);
-    } else {
-      setProductos(prev=>[prod,...prev]);
-      toast("ok",`✨ "${prod.name}" creado`);
-    }
-    setEditP(null);
+    fetch(`${API_URL}/crear_producto`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(prod)
+    })
+    .then(res => res.json())
+    .then(data => {
+      if(data.estado === "exito"){
+        toast("ok", `✅ Producto guardado`);
+        recargarProductos();
+        setEditP(null);
+      } else {
+        toast("err", `⛔ Error: ${data.detalle}`);
+      }
+    });
   };
 
   const toggleActive=p=>{
@@ -1096,10 +1121,25 @@ function App(){
   const toast=useCallback((type,msg)=>{const id=Date.now();setToasts(t=>[...t,{id,type,msg}]);setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),3500);},[]);
   const recargarProductos=useCallback(()=>{fetch(`${API_URL}/productos`).then(r=>r.json()).then(data=>setProductos(data.map(normProd))).catch(()=>toast("err","❌ Error actualizando inventario"));},[toast]);
 
+  // AHORA FETCH DE PRODUCTOS Y PEDIDOS DE LA BD REAL
   useEffect(()=>{
     if(!role) return;
     setCargando(true);
-    fetch(`${API_URL}/productos`).then(r=>r.json()).then(data=>{setProductos(data.map(normProd));setCargando(false);}).catch(()=>{setCargando(false);toast("err","❌ Error conectando a la BD");});
+    Promise.all([
+      fetch(`${API_URL}/productos`).then(r=>r.json()),
+      fetch(`${API_URL}/pedidos`).then(r=>r.json())
+    ]).then(([prodsData, ordersData])=>{
+      setProductos(prodsData.map(normProd));
+      
+      const mappedOrders = ordersData.map(o => ({
+         id: o.id, seller: o.seller, client: o.client, phone: o.phone,
+         channel: o.channel, status: o.status, total: o.total, subtotal: o.subtotal,
+         discount: o.discount || 0, notes: o.notes || "", internalNote: o.internal_note || "",
+         items: o.items || [], createdAt: o.created_at
+      }));
+      setOrders(mappedOrders);
+      setCargando(false);
+    }).catch(()=>{setCargando(false);toast("err","❌ Error conectando a la BD");});
   },[role]);
 
   if(!role) return <Login onLogin={r=>{setRole(r);setPage("venta");}}/>;
@@ -1120,7 +1160,7 @@ function App(){
   ];
 
   const renderPage=()=>{
-    if(cargando) return <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:20}}><div style={{width:56,height:56,border:`3px solid rgba(0,0,0,.08)`,borderTop:`3px solid ${accent}`,borderRadius:"50%",animation:"spin 1s linear infinite"}}/><p style={{color:accent,fontWeight:700,fontSize:14,animation:"pulse 1.5s ease-in-out infinite"}}>Cargando productos desde BD…</p></div>;
+    if(cargando) return <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:20}}><div style={{width:56,height:56,border:`3px solid rgba(0,0,0,.08)`,borderTop:`3px solid ${accent}`,borderRadius:"50%",animation:"spin 1s linear infinite"}}/><p style={{color:accent,fontWeight:700,fontSize:14,animation:"pulse 1.5s ease-in-out infinite"}}>Cargando Balespi PRO…</p></div>;
     if(page==="venta")     return <Venta role={role} productos={productos} recargarProductos={recargarProductos} orders={orders} setOrders={setOrders} transfers={transfers} setTransfers={setTransfers} toast={toast}/>;
     if(page==="pedidos")   return <Pedidos orders={orders} setOrders={setOrders} productos={productos} accent={accent} role={role} toast={toast}/>;
     if(page==="productos") return <ProductosScreen productos={productos} setProductos={setProductos} role={role} toast={toast} recargarProductos={recargarProductos}/>;
