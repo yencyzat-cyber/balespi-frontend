@@ -29,20 +29,34 @@
     .sidebar{display:none}
     .bottom-nav-mobile{display:flex}
     .cart-float{position:fixed;bottom:80px;z-index:500;left:14px;right:14px;animation:slideUp .3s cubic-bezier(.34,1.2,.64,1) both}
+    
+    /* MODIFICACIÓN DE ESCRITORIO PARA ADAPTABILIDAD AL 100% */
     @media(min-width:768px){
       body{background:linear-gradient(135deg,#060609 0%,#0d0d1a 60%,#06080f 100%)}
-      .shell{max-width:1100px;margin:0 auto;flex-direction:row;box-shadow:0 0 80px rgba(0,0,0,.8)}
+      
+      /* 1. Quitamos el max-width para que abarque todo el monitor */
+      .shell{width:100%;max-width:100%;margin:0;flex-direction:row;box-shadow:none}
+      
       .sidebar{display:flex;flex-direction:column;width:220px;flex-shrink:0;background:rgba(0,0,0,.5);border-right:1px solid rgba(255,255,255,.06)}
       .bottom-nav-mobile{display:none!important}
       .main-topbar-logo{display:none!important}
-      /* Carrito en desktop: se ancla dentro del área main (viewport - sidebar - margen del shell centrado)
-         Shell max-width=1100, sidebar=220. Si viewport > 1100: margen = (vw-1100)/2, sino margen=0 */
+      
+      /* 2. Centramos el carrito fluidamente en el área sobrante (Pantalla - Sidebar) */
       .cart-float{
-        left: calc(220px + 14px + clamp(0px, (100vw - 1100px)/2, 9999px));
-        right: calc(14px + clamp(0px, (100vw - 1100px)/2, 9999px));
-        bottom:20px;
+        left: 220px;
+        right: 0;
+        bottom: 24px;
+        display: flex;
+        justify-content: center;
+        padding: 0 16px;
+        pointer-events: none; /* Permite hacer clic en el espacio vacío a los lados del botón */
       }
-      .prod-grid-scroll{padding-bottom:80px!important}
+      /* 3. Evitamos que el botón se estire infinito, manteniéndolo centrado y elegante */
+      .cart-float > button {
+        max-width: 500px;
+        pointer-events: auto; /* Reactiva el clic en el botón */
+      }
+      .prod-grid-scroll{padding-bottom:90px!important}
     }
   </style>
 </head>
@@ -330,7 +344,7 @@ function Venta({role,productos,recargarProductos,orders,setOrders,transfers,setT
       phone:isLive?client.phone:"",
       channel,subtotal,discount_pct:discountPct,total,
       notes:notes||"Venta desde Balespi PRO",
-      internal_note: internalNote, // <--- COMPATIBILIDAD AÑADIDA AQUÍ
+      internal_note: internalNote,
       items:cart.map(c=>{
         const p=productos.find(x=>x.id===c.pid);
         return{product_id:c.pid,sale_type:c.type,qty:c.qty,price_applied:p?getPrice(p):0};
