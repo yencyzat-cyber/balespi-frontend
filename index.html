@@ -1,651 +1,521 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Balespi Import PRO</title>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-        html, body { height: 100%; background: #000; font-family: -apple-system, 'Inter', sans-serif; -webkit-font-smoothing: antialiased; overflow: hidden; }
-        input, select, button, textarea { font-family: inherit; }
-        ::-webkit-scrollbar { display: none; }
-
-        @keyframes slideUp   { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes fadeIn    { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes fadeUp    { from { transform: translateY(18px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes bounceIn  { 0% { transform: scale(.5); opacity: 0; } 60% { transform: scale(1.12); } 100% { transform: scale(1); opacity: 1; } }
-        @keyframes float     { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
-        @keyframes pulse     { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(.92); } }
-        @keyframes spin      { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-        .hap { transition: transform .12s cubic-bezier(.34,1.56,.64,1), opacity .1s; }
-        .hap:active { transform: scale(.88) !important; opacity: .72; }
-
-        .app { max-width: 480px; margin: 0 auto; height: 100vh; display: flex; flex-direction: column; position: relative; color: #fff; background: #0a0a0f; overflow: hidden; }
-
-        /* Ambient blobs */
-        .blob { position: fixed; pointer-events: none; z-index: 0; border-radius: 50%; }
-        .blob-1 { top: -20%; left: -10%; width: 60vw; height: 60vw; max-width: 360px; max-height: 360px; background: radial-gradient(ellipse, rgba(255,159,10,.1) 0%, transparent 70%); animation: float 8s ease-in-out infinite; }
-        .blob-2 { bottom: -10%; right: -10%; width: 50vw; height: 50vw; max-width: 300px; max-height: 300px; background: radial-gradient(ellipse, rgba(255,69,58,.07) 0%, transparent 70%); animation: float 11s ease-in-out infinite reverse; }
-
-        .content { flex: 1; overflow-y: auto; overflow-x: hidden; position: relative; z-index: 1; }
-        .content::-webkit-scrollbar { display: none; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Balespi Import PRO</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    html,body{height:100%;font-family:-apple-system,'Inter',sans-serif;background:#000;color:#fff;-webkit-font-smoothing:antialiased;overflow:hidden}
+    input,select,button,textarea{font-family:inherit}
+    ::-webkit-scrollbar{width:4px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px}
+    @keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+    @keyframes slideDown{from{transform:translateY(-20px);opacity:0}to{transform:translateY(0);opacity:1}}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    @keyframes fadeUp{from{transform:translateY(18px);opacity:0}to{transform:translateY(0);opacity:1}}
+    @keyframes bounceIn{0%{transform:scale(.5);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+    @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.92)}}
+    @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+    .hap{transition:transform .12s cubic-bezier(.34,1.56,.64,1),opacity .1s;cursor:pointer}
+    .hap:active{transform:scale(.88)!important;opacity:.72}
+    .shell{width:100%;height:100vh;background:#0a0a0f;display:flex;flex-direction:column;position:relative;overflow:hidden}
+    .sidebar{display:none}
+    .bottom-nav-mobile{display:flex}
+    @media(min-width:768px){
+      body{background:linear-gradient(135deg,#060609 0%,#0d0d1a 60%,#06080f 100%)}
+      .shell{max-width:1200px;margin:0 auto;flex-direction:row;box-shadow:0 0 80px rgba(0,0,0,.8)}
+      .sidebar{display:flex;flex-direction:column;width:220px;flex-shrink:0;background:rgba(0,0,0,.5);border-right:1px solid rgba(255,255,255,.06)}
+      .bottom-nav-mobile{display:none!important}
+      .main-topbar-logo{display:none!important}
+    }
+  </style>
 </head>
 <body>
 <div id="root"></div>
-
 <script type="text/babel">
-const { useState, useEffect, useCallback } = React;
-
+const { useState, useEffect, useCallback, useMemo } = React;
 const API_URL = "https://balespi-api.onrender.com";
-const ACCENT  = "#ff9f0a";
-const GRAD    = "linear-gradient(135deg, #ff9f0a, #e5850a)";
 
-/* ── UTILS ─────────────────────────────────────────── */
-const f   = n => `S/ ${Number(n).toFixed(2)}`;
-const uid = () => "V-" + Math.floor(Math.random() * 100000);
+const ROLES = {
+  admin:    {key:"admin",    label:"Administrador", sub:"Acceso completo",          icon:"✦", accent:"#bf5af2", grad:"linear-gradient(135deg,#bf5af2,#9040d0)"},
+  vendedor: {key:"vendedor", label:"Vendedor Live",  sub:"Live · TikTok · WhatsApp", icon:"◈", accent:"#30d158", grad:"linear-gradient(135deg,#30d158,#28b84c)"},
+  tienda:   {key:"tienda",   label:"Cajero Tienda",  sub:"Ventas en mostrador",      icon:"◉", accent:"#ff9f0a", grad:"linear-gradient(135deg,#ff9f0a,#e5850a)"},
+};
+const STATUS_MAP = {
+  pago_pendiente:{label:"Pendiente",color:"#ff9f0a"},
+  pago_recibido:{label:"Pago recibido",color:"#ffd60a"},
+  verificado:{label:"Verificado",color:"#30d158"},
+  embalando:{label:"Embalando",color:"#636cf1"},
+  enviado:{label:"En camino",color:"#5ac8fa"},
+  entregado:{label:"Entregado",color:"#30d158"},
+  cancelado:{label:"Cancelado",color:"#ff453a"},
+};
+const FLOW = ["pago_pendiente","pago_recibido","verificado","embalando","enviado","entregado"];
 
-/* ── TIPOS DE VENTA ─────────────────────────────────
-   Usamos los campos del objeto producto que devuelve la API.
-   Ajustá los nombres de campo si tu API usa otros.
-   price_tienda / price_live / price_docena / price_cajon
-   per_dozen / per_box
-────────────────────────────────────────────────────── */
-const TIPOS = [
-  { k: "unidad", e: "1️⃣", l: "Unidad",  priceKey: (p, ch) => ch === "tienda" ? p.price_tienda : p.price_live },
-  { k: "docena", e: "📦",  l: "Docena",  priceKey: (p)     => (p.price_docena ?? p.price_tienda * (p.per_dozen ?? 12)) },
-  { k: "cajon",  e: "🚛",  l: "Cajón",   priceKey: (p)     => (p.price_cajon  ?? p.price_tienda * (p.per_box   ?? 20)) },
-];
+const f = n => `S/ ${Number(n||0).toFixed(2)}`;
+const uid = () => Math.random().toString(36).slice(2,7).toUpperCase();
+const ago = d => {
+  const ms=Date.now()-new Date(d).getTime();
+  if(ms<60000) return "ahora";
+  if(ms<3600000) return Math.floor(ms/60000)+"m";
+  if(ms<86400000) return Math.floor(ms/3600000)+"h";
+  return Math.floor(ms/86400000)+"d";
+};
+const applyDisc=(n,pct)=>pct>0?n*(1-pct/100):n;
 
-const getUnits = (p, tipo) => {
-  if (tipo === "unidad") return 1;
-  if (tipo === "docena") return p.per_dozen ?? 12;
-  if (tipo === "cajon")  return p.per_box   ?? 20;
-  return 1;
+const normProd=p=>({
+  ...p,
+  stockTienda:p.stock_tienda??p.stockTienda??0,
+  stockLive:p.stock_live??p.stockLive??0,
+  stockMin:p.stock_min??p.stockMin??10,
+  perDozen:p.per_dozen??p.perDozen??12,
+  perBox:p.per_box??p.perBox??20,
+  prices:{
+    tienda:p.price_tienda??p.prices?.tienda??0,
+    live:p.price_live??p.prices?.live??0,
+    docena_unit:p.price_docena??p.prices?.docena_unit??0,
+    cajon_unit:p.price_cajon??p.prices?.cajon_unit??0,
+  },
+  promo:p.promo_pct>0?{pct:p.promo_pct,label:`${p.promo_pct}% OFF`}:(p.promo??null),
+  photo:p.photo_url??p.photo??null,
+  icon:p.icon??"📦",
+  cat:p.category??p.cat??"General",
+  active:p.active!==false,
+  sku:p.sku??String(p.id),
+});
+const calcUnits=(p,type,qty)=>{
+  if(type==="unidad") return qty;
+  if(type==="docena") return qty*(p.perDozen||12);
+  if(type==="cajon")  return qty*(p.perBox||20);
+  return qty;
+};
+const calcPrice=(p,channel,type)=>{
+  if(type==="docena") return p.prices.docena_unit*(p.perDozen||12);
+  if(type==="cajon")  return p.prices.cajon_unit*(p.perBox||20);
+  const base=channel==="tienda"?p.prices.tienda:p.prices.live;
+  return p.promo?applyDisc(base,p.promo.pct):base;
 };
 
-const getPrice = (p, tipo, canal) => {
-  const t = TIPOS.find(x => x.k === tipo);
-  return t ? t.priceKey(p, canal) : p.price_tienda;
-};
-
-/* ── TOASTS ─────────────────────────────────────────── */
-function Toasts({ toasts, rm }) {
-  return (
-    <div style={{ position:"fixed", top:16, left:"50%", transform:"translateX(-50%)",
-      zIndex:9999, display:"flex", flexDirection:"column", alignItems:"center", gap:8, maxWidth:360 }}>
-      {toasts.map(t => (
-        <div key={t.id} onClick={() => rm(t.id)} style={{
-          background: t.type==="ok"   ? "rgba(48,209,88,.18)"
-                    : t.type==="warn" ? "rgba(255,159,10,.18)"
-                    :                   "rgba(255,69,58,.18)",
-          backdropFilter:"blur(32px)", WebkitBackdropFilter:"blur(32px)",
-          border:`1px solid ${t.type==="ok"?"rgba(48,209,88,.4)":t.type==="warn"?"rgba(255,159,10,.4)":"rgba(255,69,58,.4)"}`,
-          borderRadius:20, padding:"11px 20px", fontSize:13, fontWeight:600,
-          color: t.type==="ok"?"#30d158":t.type==="warn"?"#ff9f0a":"#ff453a",
-          boxShadow:"0 8px 32px rgba(0,0,0,.4)",
-          animation:"slideDown .3s cubic-bezier(.34,1.56,.64,1) both",
-          cursor:"pointer", whiteSpace:"nowrap", textAlign:"center" }}>
+function Ambient({rk}){
+  const m={admin:["#bf5af2","#636cf1"],vendedor:["#30d158","#5ac8fa"],tienda:["#ff9f0a","#ff453a"]};
+  const [c1,c2]=m[rk]||["#636cf1","#30d158"];
+  return(
+    <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,overflow:"hidden"}}>
+      <div style={{position:"absolute",top:"-20%",left:"-10%",width:"60%",height:"60%",background:`radial-gradient(ellipse,${c1}12 0%,transparent 70%)`,animation:"float 8s ease-in-out infinite"}}/>
+      <div style={{position:"absolute",bottom:"-10%",right:"-10%",width:"50%",height:"50%",background:`radial-gradient(ellipse,${c2}09 0%,transparent 70%)`,animation:"float 11s ease-in-out infinite reverse"}}/>
+    </div>
+  );
+}
+function Toasts({toasts,rm}){
+  return(
+    <div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:9999,display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
+      {toasts.map(t=>(
+        <div key={t.id} onClick={()=>rm(t.id)} style={{
+          background:t.type==="ok"?"rgba(48,209,88,.18)":t.type==="warn"?"rgba(255,159,10,.18)":"rgba(255,69,58,.18)",
+          backdropFilter:"blur(32px)",border:`1px solid ${t.type==="ok"?"rgba(48,209,88,.4)":t.type==="warn"?"rgba(255,159,10,.4)":"rgba(255,69,58,.4)"}`,
+          borderRadius:20,padding:"11px 20px",fontSize:13,fontWeight:600,
+          color:t.type==="ok"?"#30d158":t.type==="warn"?"#ff9f0a":"#ff453a",
+          boxShadow:"0 8px 32px rgba(0,0,0,.4)",animation:"slideDown .3s cubic-bezier(.34,1.56,.64,1) both",
+          cursor:"pointer",whiteSpace:"nowrap",maxWidth:360,textAlign:"center"}}>
           {t.msg}
         </div>
       ))}
     </div>
   );
 }
-
-/* ── SHEET (bottom drawer) ─────────────────────────── */
-function Sheet({ open, onClose, title, children }) {
-  if (!open) return null;
-  return (
-    <div onClick={e => e.target === e.currentTarget && onClose()} style={{
-      position:"fixed", inset:0, background:"rgba(0,0,0,.75)",
-      backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
-      zIndex:800, display:"flex", alignItems:"flex-end", justifyContent:"center",
-      animation:"fadeIn .2s ease both", maxWidth:480, margin:"0 auto" }}>
-      <div style={{ width:"100%", maxHeight:"92vh", display:"flex", flexDirection:"column",
-        background:"rgba(14,14,22,.98)", backdropFilter:"blur(40px)",
-        borderRadius:"28px 28px 0 0", border:"1px solid rgba(255,255,255,.08)",
-        borderBottom:"none", boxShadow:"0 -24px 80px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.08)",
-        animation:"slideUp .32s cubic-bezier(.34,1.1,.64,1) both" }}>
-        {/* Handle */}
-        <div style={{ display:"flex", justifyContent:"center", padding:"14px 0 4px", flexShrink:0 }}>
-          <div style={{ width:40, height:4, background:"rgba(255,255,255,.2)", borderRadius:2 }}/>
+function Sheet({open,onClose,title,children}){
+  if(!open) return null;
+  return(
+    <div onClick={e=>e.target===e.currentTarget&&onClose()} style={{
+      position:"fixed",inset:0,background:"rgba(0,0,0,.75)",backdropFilter:"blur(16px)",
+      zIndex:800,display:"flex",alignItems:"flex-end",justifyContent:"center",animation:"fadeIn .2s ease both"}}>
+      <div style={{width:"100%",maxWidth:600,maxHeight:"92vh",display:"flex",flexDirection:"column",
+        background:"rgba(14,14,22,.98)",backdropFilter:"blur(40px)",
+        borderRadius:"28px 28px 0 0",border:"1px solid rgba(255,255,255,.08)",borderBottom:"none",
+        boxShadow:"0 -24px 80px rgba(0,0,0,.8)",animation:"slideUp .32s cubic-bezier(.34,1.1,.64,1) both"}}>
+        <div style={{display:"flex",justifyContent:"center",padding:"14px 0 4px",flexShrink:0}}>
+          <div style={{width:40,height:4,background:"rgba(255,255,255,.2)",borderRadius:2}}/>
         </div>
-        {/* Header */}
-        <div style={{ padding:"8px 22px 16px", display:"flex", justifyContent:"space-between", alignItems:"center", flexShrink:0 }}>
-          <h3 style={{ fontSize:18, fontWeight:800 }}>{title}</h3>
-          <button onClick={onClose} className="hap" style={{ background:"rgba(255,255,255,.08)",
-            border:"1px solid rgba(255,255,255,.1)", borderRadius:50, width:34, height:34,
-            color:"rgba(255,255,255,.6)", fontSize:18, cursor:"pointer",
-            display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
+        <div style={{padding:"8px 22px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+          <h3 style={{fontSize:18,fontWeight:800}}>{title}</h3>
+          <button onClick={onClose} className="hap" style={{background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.1)",borderRadius:50,width:34,height:34,color:"rgba(255,255,255,.6)",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
         </div>
-        <div style={{ overflowY:"auto", padding:"0 22px 40px", flex:1 }}>{children}</div>
+        <div style={{overflowY:"auto",padding:"0 22px 40px",flex:1}}>{children}</div>
+      </div>
+    </div>
+  );
+}
+function Pill({status}){
+  const st=STATUS_MAP[status]||{label:status,color:"#888"};
+  return(
+    <span style={{display:"inline-flex",alignItems:"center",gap:5,background:`${st.color}18`,color:st.color,border:`1px solid ${st.color}33`,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>
+      <span style={{fontSize:7}}>●</span>{st.label}
+    </span>
+  );
+}
+function GInput({label,value,onChange,type="text",placeholder,icon}){
+  return(
+    <div>
+      {label&&<div style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,.35)",letterSpacing:1.2,textTransform:"uppercase",marginBottom:7}}>{label}</div>}
+      <div style={{position:"relative"}}>
+        {icon&&<span style={{position:"absolute",left:14,top:"50%",transform:"translateY(-50%)",fontSize:15,pointerEvents:"none"}}>{icon}</span>}
+        <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
+          style={{width:"100%",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:14,padding:icon?"13px 14px 13px 42px":"13px 16px",color:"#fff",fontSize:14,outline:"none"}}
+          onFocus={e=>{e.target.style.borderColor="rgba(255,255,255,.3)";e.target.style.background="rgba(255,255,255,.09)"}}
+          onBlur={e=>{e.target.style.borderColor="rgba(255,255,255,.1)";e.target.style.background="rgba(255,255,255,.06)"}}/>
+      </div>
+    </div>
+  );
+}
+function GTextarea({label,value,onChange,placeholder,rows=2}){
+  return(
+    <div>
+      {label&&<div style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,.35)",letterSpacing:1.2,textTransform:"uppercase",marginBottom:7}}>{label}</div>}
+      <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows}
+        style={{width:"100%",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:14,padding:"13px 16px",color:"#fff",fontSize:14,outline:"none",resize:"none"}}
+        onFocus={e=>{e.target.style.borderColor="rgba(255,255,255,.3)";e.target.style.background="rgba(255,255,255,.09)"}}
+        onBlur={e=>{e.target.style.borderColor="rgba(255,255,255,.1)";e.target.style.background="rgba(255,255,255,.06)"}}/>
+    </div>
+  );
+}
+function SearchBar({value,onChange,placeholder="Buscar..."}){
+  return(
+    <div style={{position:"relative",marginBottom:12}}>
+      <span style={{position:"absolute",left:14,top:"50%",transform:"translateY(-50%)",fontSize:16,pointerEvents:"none",opacity:.4}}>🔍</span>
+      <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
+        style={{width:"100%",background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.1)",borderRadius:16,padding:"12px 14px 12px 42px",color:"#fff",fontSize:14,outline:"none"}}
+        onFocus={e=>{e.target.style.borderColor="rgba(255,255,255,.25)";e.target.style.background="rgba(255,255,255,.1)"}}
+        onBlur={e=>{e.target.style.borderColor="rgba(255,255,255,.1)";e.target.style.background="rgba(255,255,255,.07)"}}/>
+      {value&&<button onClick={()=>onChange("")} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"rgba(255,255,255,.15)",border:"none",borderRadius:50,width:22,height:22,color:"rgba(255,255,255,.6)",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>}
+    </div>
+  );
+}
+function CatChips({cats,active,onChange,accent}){
+  return(
+    <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:4,marginBottom:12}}>
+      {["Todos",...cats].map(c=>{
+        const on=(c==="Todos"&&!active)||(c===active);
+        return(
+          <button key={c} onClick={()=>onChange(c==="Todos"?null:c)} className="hap" style={{background:on?`${accent}22`:"rgba(255,255,255,.05)",border:`1px solid ${on?accent+"55":"rgba(255,255,255,.08)"}`,borderRadius:50,padding:"7px 14px",color:on?accent:"rgba(255,255,255,.4)",fontSize:12,fontWeight:on?700:500,whiteSpace:"nowrap",flexShrink:0,transition:"all .2s"}}>
+            {c}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+function StockGauge({p}){
+  const tot=p.stockTienda+p.stockLive;
+  const pctT=tot>0?(p.stockTienda/tot)*100:50;
+  const lowT=p.stockTienda<=p.stockMin;
+  const lowL=p.stockLive<=p.stockMin;
+  return(
+    <div style={{marginTop:8}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
+        <span style={{fontSize:11,fontWeight:700,color:lowT?"#ff453a":"#ff9f0a"}}>🏪 {p.stockTienda}u {lowT&&"⚠"}</span>
+        <span style={{fontSize:10,color:"rgba(255,255,255,.25)"}}>total {tot}u</span>
+        <span style={{fontSize:11,fontWeight:700,color:lowL?"#ff453a":"#30d158"}}>{lowL&&"⚠"} 📱 {p.stockLive}u</span>
+      </div>
+      <div style={{height:8,borderRadius:6,overflow:"hidden",display:"flex",background:"rgba(255,255,255,.06)"}}>
+        <div style={{width:`${pctT}%`,background:lowT?"#ff453a":"#ff9f0a",transition:"width .4s"}}/>
+        <div style={{flex:1,background:lowL?"#ff453a":"#30d158"}}/>
       </div>
     </div>
   );
 }
 
-/* ── LOADER ─────────────────────────────────────────── */
-function Loader() {
-  return (
-    <div style={{ height:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:20, background:"#0a0a0f" }}>
-      <div style={{ width:60, height:60, border:`3px solid rgba(255,159,10,.15)`, borderTop:`3px solid ${ACCENT}`, borderRadius:"50%", animation:"spin 1s linear infinite" }}/>
-      <p style={{ color:ACCENT, fontWeight:700, fontSize:15, animation:"pulse 1.5s ease-in-out infinite" }}>Cargando Balespi PRO…</p>
-    </div>
-  );
-}
-
-/* ── PANTALLA ÉXITO ─────────────────────────────────── */
-function PantallaExito({ total, onNuevaVenta }) {
-  return (
-    <div style={{ height:"calc(100vh - 130px)", display:"flex", flexDirection:"column",
-      alignItems:"center", justifyContent:"center", gap:20, padding:32, textAlign:"center" }}>
-      <div style={{ fontSize:72, animation:"bounceIn .6s cubic-bezier(.34,1.56,.64,1) both" }}>✅</div>
-      <div style={{ animation:"fadeUp .4s .15s both" }}>
-        <h2 style={{ fontSize:26, fontWeight:900, marginBottom:8 }}>¡Venta registrada!</h2>
-        <div style={{ fontSize:44, fontWeight:900, color:ACCENT, letterSpacing:-2 }}>{f(total)}</div>
-        <p style={{ color:"rgba(255,255,255,.4)", fontSize:13, marginTop:8 }}>Stock actualizado en BD</p>
+/* ── LOGIN ── */
+function Login({onLogin}){
+  const [sel,setSel]=useState(null);
+  return(
+    <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:28,background:"linear-gradient(160deg,#060609,#0d0d1a 60%,#06080f)",position:"relative",overflow:"hidden"}}>
+      <Ambient rk={sel||"tienda"}/>
+      <div style={{textAlign:"center",marginBottom:48,animation:"fadeUp .6s both",position:"relative",zIndex:1}}>
+        <div style={{width:84,height:84,borderRadius:26,background:"linear-gradient(145deg,rgba(255,255,255,.1),rgba(255,255,255,.03))",border:"1px solid rgba(255,255,255,.13)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:38,margin:"0 auto 18px",boxShadow:"0 20px 60px rgba(0,0,0,.5)",animation:"float 5s ease-in-out infinite"}}>🛒</div>
+        <div style={{fontSize:10,letterSpacing:5,color:"rgba(255,255,255,.3)",fontWeight:600,marginBottom:8}}>SISTEMA DE GESTIÓN</div>
+        <h1 style={{fontSize:32,fontWeight:900,letterSpacing:-0.5}}>Balespi Import</h1>
+        <p style={{color:"rgba(255,255,255,.3)",fontSize:13,marginTop:8}}>¿Quién está vendiendo hoy?</p>
       </div>
-      <button onClick={onNuevaVenta} className="hap" style={{
-        background:GRAD, color:"#fff", border:"none", borderRadius:20,
-        padding:"15px 40px", fontSize:16, fontWeight:800, cursor:"pointer",
-        boxShadow:`0 12px 40px ${ACCENT}50`, animation:"fadeUp .4s .3s both" }}>
-        Nueva Venta
+      <div style={{width:"100%",maxWidth:400,display:"flex",flexDirection:"column",gap:10,position:"relative",zIndex:1}}>
+        {Object.values(ROLES).map((r,i)=>(
+          <button key={r.key} onClick={()=>setSel(r.key)} className="hap" style={{background:sel===r.key?`linear-gradient(135deg,${r.accent}22,${r.accent}0a)`:"rgba(255,255,255,.04)",border:`1.5px solid ${sel===r.key?r.accent+"55":"rgba(255,255,255,.08)"}`,borderRadius:22,padding:"17px 20px",display:"flex",alignItems:"center",gap:14,textAlign:"left",animation:`fadeUp .5s ${.1+i*.08}s both`,transition:"all .3s cubic-bezier(.34,1.2,.64,1)"}}>
+            <div style={{width:50,height:50,borderRadius:16,background:sel===r.key?r.grad:"rgba(255,255,255,.07)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0,transition:"all .3s"}}>{r.icon}</div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:700,fontSize:15,color:sel===r.key?r.accent:"#fff"}}>{r.label}</div>
+              <div style={{fontSize:12,color:"rgba(255,255,255,.3)",marginTop:3}}>{r.sub}</div>
+            </div>
+            {sel===r.key&&<div style={{width:22,height:22,borderRadius:50,background:r.grad,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",animation:"bounceIn .3s both"}}>✓</div>}
+          </button>
+        ))}
+      </div>
+      <button onClick={()=>sel&&onLogin(sel)} className="hap" style={{marginTop:24,width:"100%",maxWidth:400,padding:"16px",background:sel?ROLES[sel].grad:"rgba(255,255,255,.06)",color:sel?"#fff":"rgba(255,255,255,.3)",border:sel?"none":"1px solid rgba(255,255,255,.08)",borderRadius:20,fontSize:16,fontWeight:700,cursor:sel?"pointer":"not-allowed",animation:"fadeUp .6s .3s both",position:"relative",zIndex:1,transition:"all .3s"}}>
+        {sel?`Entrar como ${ROLES[sel].label} →`:"Seleccioná tu perfil"}
       </button>
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════════════════
-   APP PRINCIPAL
-═══════════════════════════════════════════════════════ */
-function App() {
-  const [productos,      setProductos]      = useState([]);
-  const [carrito,        setCarrito]        = useState([]);   // [{...producto, tipo, qty, precio}]
-  const [cargando,       setCargando]       = useState(true);
-  const [procesando,     setProcesando]     = useState(false);
-  const [carritoAbierto, setCarritoAbierto] = useState(false);
-  const [exito,          setExito]          = useState(null); // total de la venta exitosa
-  const [toasts,         setToasts]         = useState([]);
-  const [searchTerm,     setSearchTerm]     = useState("");
-  const [catActiva,      setCatActiva]      = useState(null);
-  const [tipoVenta,      setTipoVenta]      = useState("unidad");
-  const [canal,          setCanal]          = useState("tienda");
-  const [tabActivo,      setTabActivo]      = useState("Vender");
+/* ── VENTA ── */
+function Venta({role,productos,recargarProductos,orders,setOrders,transfers,setTransfers,toast}){
+  const channel=role==="tienda"?"tienda":"live";
+  const stockKey=channel==="tienda"?"stockTienda":"stockLive";
+  const otherKey=channel==="tienda"?"stockLive":"stockTienda";
+  const otherName=channel==="tienda"?"Live":"Tienda";
+  const accent=ROLES[role].accent;
+  const isLive=channel==="live";
+  const cats=[...new Set(productos.filter(p=>p.active).map(p=>p.cat))];
+  const [saleType,setSaleType]=useState("unidad");
+  const [search,setSearch]=useState("");
+  const [catFilter,setCatFilter]=useState(null);
+  const [cart,setCart]=useState([]);
+  const [cartOpen,setCartOpen]=useState(false);
+  const [clientOpen,setClientOpen]=useState(false);
+  const [client,setClient]=useState({name:"",phone:""});
+  const [notes,setNotes]=useState("");
+  const [internalNote,setInternalNote]=useState("");
+  const [discountPct,setDiscountPct]=useState(0);
+  const [procesando,setProcesando]=useState(false);
+  const [done,setDone]=useState(null);
 
-  /* ── TOAST helpers ── */
-  const toast = useCallback((type, msg) => {
-    const id = Date.now();
-    setToasts(t => [...t, { id, type, msg }]);
-    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500);
-  }, []);
-  const rmToast = id => setToasts(t => t.filter(x => x.id !== id));
-
-  /* ── CARGAR PRODUCTOS ── */
-  const cargarProductos = useCallback(() => {
-    fetch(`${API_URL}/productos`)
-      .then(r => r.json())
-      .then(data => { setProductos(data); setCargando(false); })
-      .catch(() => { setCargando(false); toast("err", "❌ No se pudo conectar a la BD"); });
-  }, [toast]);
-
-  useEffect(() => { cargarProductos(); }, [cargarProductos]);
-
-  /* ── CARRITO helpers ── */
-  const stockCanal = (p) => canal === "tienda" ? (p.stock_tienda ?? 0) : (p.stock_live ?? 0);
-
-  const addToCart = (p) => {
-    const key = `${p.id}-${tipoVenta}`;
-    const precio = getPrice(p, tipoVenta, canal);
-    const units  = getUnits(p, tipoVenta);
-    setCarrito(prev => {
-      const ex = prev.find(c => c._key === key);
-      if (ex) return prev.map(c => c._key === key ? { ...c, qty: c.qty + 1 } : c);
-      return [...prev, { ...p, _key: key, tipo: tipoVenta, qty: 1, precio, units }];
-    });
-  };
-
-  const setQty = (key, qty) => {
-    if (qty < 1) {
-      setCarrito(prev => {
-        const next = prev.filter(c => c._key !== key);
-        if (next.length === 0) setCarritoAbierto(false);
-        return next;
-      });
-    } else {
-      setCarrito(prev => prev.map(c => c._key === key ? { ...c, qty } : c));
-    }
-  };
-
-  const totalCarrito    = carrito.reduce((s, c) => s + c.precio * c.qty, 0);
-  const totalItemsCarrito = carrito.reduce((s, c) => s + c.qty, 0);
-
-  /* ── CATEGORÍAS ── */
-  const cats = [...new Set(productos.map(p => p.category ?? p.cat ?? "General"))];
-
-  const productosFiltrados = productos.filter(p => {
-    const cat = p.category ?? p.cat ?? "General";
-    const ok  = (!catActiva || cat === catActiva)
-      && (!searchTerm || p.name.toLowerCase().includes(searchTerm.toLowerCase()) || (p.sku ?? "").toLowerCase().includes(searchTerm.toLowerCase()));
-    return ok;
+  const getPrice=p=>calcPrice(p,channel,saleType);
+  const filtered=useMemo(()=>productos.filter(p=>p.active&&(!catFilter||p.cat===catFilter)&&(!search||p.name.toLowerCase().includes(search.toLowerCase()))),
+    [productos,catFilter,search]);
+  const add=p=>setCart(prev=>{
+    const ex=prev.find(c=>c.pid===p.id&&c.type===saleType);
+    if(ex) return prev.map(c=>c.pid===p.id&&c.type===saleType?{...c,qty:c.qty+1}:c);
+    return [...prev,{pid:p.id,type:saleType,qty:1}];
   });
+  const setQty=(pid,type,qty)=>qty<1?setCart(prev=>prev.filter(c=>!(c.pid===pid&&c.type===type))):setCart(prev=>prev.map(c=>c.pid===pid&&c.type===type?{...c,qty}:c));
+  const subtotal=cart.reduce((s,c)=>{const p=productos.find(x=>x.id===c.pid);return s+(p?getPrice(p)*c.qty:0);},0);
+  const total=applyDisc(subtotal,discountPct);
+  const totalItems=cart.reduce((s,c)=>s+c.qty,0);
+  const openCart=()=>{if(isLive&&!client.name){setClientOpen(true);return;}setCartOpen(true);};
 
-  /* ── PROCESAR VENTA ── */
-  const procesarVenta = () => {
+  const confirm=()=>{
     setProcesando(true);
-    const venta = {
-      order_id:     uid(),
-      seller:       canal === "tienda" ? "Cajero Tienda" : "Vendedor Live",
-      client:       canal === "tienda" ? "Cliente Mostrador" : "Cliente Live",
-      phone:        "",
-      channel:      canal,
-      subtotal:     totalCarrito,
-      discount_pct: 0,
-      total:        totalCarrito,
-      notes:        "Venta desde Balespi PRO",
-      items: carrito.map(item => ({
-        product_id:    item.id,
-        sale_type:     item.tipo,
-        qty:           item.qty,
-        price_applied: item.precio,
-      })),
+    const oid=channel==="tienda"?`TDA-${uid()}`:`LIVE-${uid()}`;
+    const alerts=[];
+    const newTransf=[...transfers];
+    cart.forEach(c=>{
+      const p=productos.find(x=>x.id===c.pid); if(!p) return;
+      const needed=calcUnits(p,c.type,c.qty);
+      const avail=p[stockKey];
+      if(avail<needed){
+        const falta=needed-avail;
+        const tid=`TRF-${uid()}`;
+        alerts.push({pid:c.pid,name:p.name,falta,otherName,tid});
+        newTransf.push({id:tid,pid:c.pid,productName:p.name,productIcon:p.icon,productPhoto:p.photo,unidades:falta,de:otherName.toLowerCase(),deKey:otherKey,a:channel,orderId:oid,status:"pendiente",createdAt:new Date()});
+      }
+    });
+    const venta={
+      order_id:oid,
+      seller:role==="tienda"?"Cajero Tienda":client.name||"Vendedor Live",
+      client:isLive?client.name:"Cliente Mostrador",
+      phone:isLive?client.phone:"",
+      channel,subtotal,discount_pct:discountPct,total,
+      notes:notes||"Venta desde Balespi PRO",
+      items:cart.map(c=>{
+        const p=productos.find(x=>x.id===c.pid);
+        return{product_id:c.pid,sale_type:c.type,qty:c.qty,price_applied:p?getPrice(p):0};
+      }),
     };
-
-    fetch(`${API_URL}/registrar_venta`, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify(venta),
+    fetch(`${API_URL}/registrar_venta`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(venta)})
+    .then(r=>r.json())
+    .then(data=>{
+      setProcesando(false);
+      if(data.estado==="exito"){
+        const order={id:oid,seller:role,client:isLive?client.name:"— Tienda —",phone:isLive?client.phone:"",channel,notes,internalNote,discount:discountPct,
+          items:cart.map(c=>{const p=productos.find(x=>x.id===c.pid);return{pid:c.pid,qty:c.qty,type:c.type,units:calcUnits(p,c.type,c.qty),price:p?getPrice(p):0};}),
+          subtotal,total,status:isLive?"pago_pendiente":"verificado",createdAt:new Date(),stockAlert:alerts.length>0?alerts:null};
+        setOrders(prev=>[order,...prev]);
+        setTransfers(newTransf);
+        setDone({...order,total});
+        setCart([]);setCartOpen(false);setClient({name:"",phone:""});setNotes("");setInternalNote("");setDiscountPct(0);
+        recargarProductos();
+        if(alerts.length>0) toast("warn",`🔀 ${alerts.length} traspaso(s) pendiente(s)`);
+      } else {
+        toast("err",`⛔ ${data.detalle||"Error en BD"}`);
+      }
     })
-      .then(r => r.json())
-      .then(data => {
-        setProcesando(false);
-        if (data.estado === "exito") {
-          const total = totalCarrito;
-          setCarrito([]);
-          setCarritoAbierto(false);
-          cargarProductos();       // recarga silenciosa
-          setExito(total);
-        } else {
-          toast("err", `⛔ Error: ${data.detalle ?? "Error en BD"}`);
-        }
-      })
-      .catch(err => {
-        setProcesando(false);
-        toast("err", `❌ Error de red: ${String(err).slice(0,60)}`);
-      });
+    .catch(err=>{setProcesando(false);toast("err",`❌ Error de red`);});
   };
 
-  /* ─────────────────────────────────────────────────── */
-  if (cargando) return <Loader/>;
-
-  return (
-    <div className="app">
-      {/* Ambient */}
-      <div className="blob blob-1"/>
-      <div className="blob blob-2"/>
-
-      <Toasts toasts={toasts} rm={rmToast}/>
-
-      {/* ── TOP BAR ────────────────────────────────── */}
-      <div style={{ flexShrink:0, height:60,
-        background:"rgba(0,0,0,.6)", backdropFilter:"blur(32px) saturate(200%)",
-        WebkitBackdropFilter:"blur(32px) saturate(200%)",
-        borderBottom:"1px solid rgba(255,255,255,.06)",
-        display:"flex", alignItems:"center", justifyContent:"space-between",
-        padding:"0 18px", position:"relative", zIndex:10 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:11 }}>
-          <div style={{ width:34, height:34, borderRadius:11,
-            background:"linear-gradient(145deg,rgba(255,255,255,.1),rgba(255,255,255,.03))",
-            border:"1px solid rgba(255,255,255,.13)",
-            display:"flex", alignItems:"center", justifyContent:"center", fontSize:17,
-            animation:"float 5s ease-in-out infinite" }}>🛒</div>
-          <div>
-            <div style={{ fontSize:13, fontWeight:800, letterSpacing:-0.3 }}>Balespi Import</div>
-            <div style={{ fontSize:10, color:ACCENT, fontWeight:600, letterSpacing:0.5 }}>Cajero Tienda</div>
+  if(done) return(
+    <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16,padding:32,textAlign:"center",overflowY:"auto"}}>
+      <div style={{fontSize:72,animation:"bounceIn .6s cubic-bezier(.34,1.56,.64,1) both"}}>{isLive?"📱":"✅"}</div>
+      <div style={{animation:"fadeUp .4s .15s both",width:"100%",maxWidth:380}}>
+        <h2 style={{fontSize:26,fontWeight:900,marginBottom:4}}>{isLive?"¡Pedido creado!":"¡Venta registrada!"}</h2>
+        {isLive&&<div style={{color:"rgba(255,255,255,.5)",fontSize:13,marginBottom:4}}>{done.client} · {done.phone}</div>}
+        {done.discount>0&&<div style={{color:"#ff375f",fontSize:12,fontWeight:700,marginBottom:6}}>🎉 -{done.discount}% · ahorraste {f(done.subtotal-done.total)}</div>}
+        <div style={{fontSize:44,fontWeight:900,color:accent,letterSpacing:-2}}>{f(done.total)}</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,.3)",marginTop:4,fontFamily:"monospace"}}>{done.id}</div>
+        {done.stockAlert&&done.stockAlert.map((a,i)=>(
+          <div key={i} style={{marginTop:12,background:"rgba(255,159,10,.12)",border:"1px solid rgba(255,159,10,.4)",borderRadius:18,padding:"14px 16px",textAlign:"left"}}>
+            <div style={{fontWeight:800,fontSize:13,color:"#ff9f0a",marginBottom:6}}>🔀 Traspaso pendiente generado</div>
+            <div style={{fontSize:12,color:"rgba(255,255,255,.65)",lineHeight:1.8}}><b style={{color:"#fff"}}>{a.name}</b>: faltaron <b style={{color:"#ff9f0a"}}>{a.falta}u</b> · <span style={{fontFamily:"monospace",fontSize:10,color:"rgba(255,255,255,.35)"}}>{a.tid}</span></div>
           </div>
-        </div>
-        {/* Selector canal */}
-        <div style={{ display:"flex", background:"rgba(255,255,255,.07)", borderRadius:12,
-          border:"1px solid rgba(255,255,255,.1)", overflow:"hidden" }}>
-          {[{v:"tienda",l:"🏪"},{v:"live",l:"📱"}].map(opt => (
-            <button key={opt.v} onClick={() => setCanal(opt.v)} className="hap" style={{
-              padding:"7px 14px", background:canal===opt.v?ACCENT:"transparent",
-              border:"none", color:canal===opt.v?"#000":"rgba(255,255,255,.4)",
-              fontSize:13, fontWeight:700, cursor:"pointer",
-              transition:"all .2s" }}>
-              {opt.l} {opt.v==="tienda"?"Tienda":"Live"}
-            </button>
-          ))}
-        </div>
+        ))}
       </div>
+      <button onClick={()=>setDone(null)} className="hap" style={{background:ROLES[role].grad,color:"#fff",border:"none",borderRadius:20,padding:"15px 40px",fontSize:16,fontWeight:800,boxShadow:`0 12px 40px ${accent}50`}}>Nueva Venta</button>
+    </div>
+  );
 
-      {/* ── CONTENIDO ──────────────────────────────── */}
-      <div className="content" style={{ paddingBottom: carrito.length > 0 ? 160 : 80 }}>
-        <div style={{ position:"relative", zIndex:1 }}>
-
-          {/* ══ TAB: VENDER ══ */}
-          {tabActivo === "Vender" && (
-            exito !== null ? (
-              <PantallaExito total={exito} onNuevaVenta={() => setExito(null)}/>
-            ) : (
-              <div style={{ padding:"16px 16px 0" }}>
-                <h2 style={{ fontSize:20, fontWeight:900, letterSpacing:-0.5, marginBottom:14 }}>
-                  ¿Qué vas a vender?
-                </h2>
-
-                {/* TIPO DE VENTA */}
-                <div style={{ display:"flex", gap:8, marginBottom:14 }}>
-                  {TIPOS.map(t => {
-                    const on = tipoVenta === t.k;
-                    return (
-                      <button key={t.k} onClick={() => setTipoVenta(t.k)} className="hap" style={{
-                        flex:1, background:on ? ACCENT : "rgba(255,255,255,.06)",
-                        border:`1.5px solid ${on ? ACCENT : "rgba(255,255,255,.08)"}`,
-                        borderRadius:14, padding:"10px 4px", cursor:"pointer",
-                        transition:"all .25s cubic-bezier(.34,1.2,.64,1)",
-                        boxShadow:on ? `0 6px 20px ${ACCENT}40` : "none" }}>
-                        <div style={{ fontSize:18, marginBottom:2 }}>{t.e}</div>
-                        <div style={{ fontSize:11, fontWeight:on?800:500,
-                          color:on?"#000":"rgba(255,255,255,.6)", transition:"color .2s" }}>{t.l}</div>
-                      </button>
-                    );
-                  })}
+  return(
+    <div style={{height:"100%",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      <div style={{padding:"14px 16px 0",background:"rgba(10,10,15,.9)",backdropFilter:"blur(20px)",flexShrink:0}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.35)",letterSpacing:1.5,fontWeight:600}}>{channel==="tienda"?"🏪 VENTA EN TIENDA":"📱 VENTA LIVE / WHATSAPP"}</div>
+            <h2 style={{fontSize:20,fontWeight:900,letterSpacing:-0.5,marginTop:2}}>{isLive&&client.name?`Hola, ${client.name.split(" ")[0]} 👋`:"¿Qué vas a vender?"}</h2>
+          </div>
+          {isLive&&<button onClick={()=>setClientOpen(true)} className="hap" style={{background:client.name?`${accent}20`:"rgba(255,255,255,.07)",border:`1px solid ${client.name?accent+"40":"rgba(255,255,255,.1)"}`,borderRadius:14,padding:"8px 14px",color:client.name?accent:"rgba(255,255,255,.5)",fontSize:12,fontWeight:700,flexShrink:0}}>{client.name?"📱 "+client.phone.slice(-4):"+ Cliente"}</button>}
+        </div>
+        <div style={{display:"flex",gap:8,marginBottom:12}}>
+          {[{k:"unidad",e:"1️⃣",l:"Unidad"},{k:"docena",e:"📦",l:"Docena"},{k:"cajon",e:"🚛",l:"Cajón"}].map(t=>{
+            const on=saleType===t.k;
+            return(<button key={t.k} onClick={()=>setSaleType(t.k)} className="hap" style={{flex:1,background:on?accent:"rgba(255,255,255,.06)",border:`1.5px solid ${on?accent:"rgba(255,255,255,.08)"}`,borderRadius:14,padding:"10px 4px",transition:"all .25s",boxShadow:on?`0 6px 20px ${accent}40`:"none"}}>
+              <div style={{fontSize:18,marginBottom:2}}>{t.e}</div>
+              <div style={{fontSize:11,fontWeight:on?800:500,color:on?"#000":"rgba(255,255,255,.6)"}}>{t.l}</div>
+            </button>);
+          })}
+        </div>
+        <SearchBar value={search} onChange={setSearch} placeholder="Buscar producto..."/>
+        <CatChips cats={cats} active={catFilter} onChange={setCatFilter} accent={accent}/>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"4px 14px 120px"}}>
+        {filtered.length===0&&<div style={{textAlign:"center",color:"rgba(255,255,255,.25)",padding:"50px 0"}}><div style={{fontSize:36,marginBottom:10,opacity:.3}}>🔍</div>Sin resultados</div>}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(148px,1fr))",gap:10}}>
+          {filtered.map(p=>{
+            const price=getPrice(p);
+            const basePrice=channel==="tienda"?p.prices.tienda:p.prices.live;
+            const item=cart.find(c=>c.pid===p.id&&c.type===saleType);
+            const qty=item?.qty||0;
+            const stockCanal=p[stockKey];
+            const sinStock=stockCanal<=0;
+            const stockBajo=stockCanal>0&&stockCanal<=p.stockMin;
+            const insuf=qty>0&&calcUnits(p,saleType,qty)>stockCanal;
+            return(
+              <div key={p.id} style={{background:insuf?"linear-gradient(145deg,rgba(255,159,10,.15),rgba(255,159,10,.06))":qty>0?`linear-gradient(145deg,${accent}18,${accent}08)`:"rgba(255,255,255,.05)",border:`1.5px solid ${insuf?"#ff9f0a55":qty>0?accent+"55":"rgba(255,255,255,.08)"}`,borderRadius:22,overflow:"hidden",transition:"all .3s",position:"relative",opacity:sinStock?.35:1}}>
+                <div style={{position:"absolute",top:9,right:9,background:sinStock?"rgba(255,69,58,.2)":stockBajo?"rgba(255,159,10,.15)":"rgba(0,0,0,.4)",border:`1px solid ${sinStock?"rgba(255,69,58,.4)":stockBajo?"rgba(255,159,10,.3)":"rgba(255,255,255,.08)"}`,borderRadius:8,padding:"3px 8px",fontSize:9,fontWeight:800,color:sinStock?"#ff453a":stockBajo?"#ff9f0a":"rgba(255,255,255,.5)"}}>
+                  {sinStock?"AGOTADO":`${stockCanal}u`}
                 </div>
-
-                {/* BUSCADOR */}
-                <div style={{ position:"relative", marginBottom:12 }}>
-                  <span style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)",
-                    fontSize:16, pointerEvents:"none", opacity:.4 }}>🔍</span>
-                  <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                    placeholder="Buscar producto..."
-                    style={{ width:"100%", background:"rgba(255,255,255,.07)",
-                      border:"1px solid rgba(255,255,255,.1)", borderRadius:16,
-                      padding:"12px 14px 12px 42px", color:"#fff", fontSize:14, outline:"none" }}
-                    onFocus={e  => { e.target.style.borderColor="rgba(255,255,255,.25)"; e.target.style.background="rgba(255,255,255,.1)"; }}
-                    onBlur={e   => { e.target.style.borderColor="rgba(255,255,255,.1)";  e.target.style.background="rgba(255,255,255,.07)"; }}/>
-                  {searchTerm && (
-                    <button onClick={() => setSearchTerm("")} style={{ position:"absolute", right:12, top:"50%",
-                      transform:"translateY(-50%)", background:"rgba(255,255,255,.15)",
-                      border:"none", borderRadius:50, width:22, height:22,
-                      color:"rgba(255,255,255,.6)", cursor:"pointer", fontSize:12,
-                      display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
+                {p.promo&&<div style={{position:"absolute",top:9,left:9,background:"linear-gradient(135deg,#ff375f,#ff9f0a)",borderRadius:8,padding:"2px 8px",fontSize:9,fontWeight:900,color:"#fff"}}>🔥 {p.promo.label}</div>}
+                <div style={{padding:"20px 14px 10px"}}>
+                  {p.photo?<div style={{width:60,height:60,borderRadius:14,overflow:"hidden",margin:"0 auto 8px",border:"1px solid rgba(255,255,255,.1)"}}><img src={p.photo} alt={p.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>
+                  :<div style={{fontSize:40,textAlign:"center",marginBottom:8}}>{p.icon}</div>}
+                  <div style={{fontWeight:700,fontSize:13,textAlign:"center",lineHeight:1.3,marginBottom:6}}>{p.name}</div>
+                  <div style={{textAlign:"center"}}>
+                    {p.promo&&saleType==="unidad"&&<div style={{fontSize:11,color:"rgba(255,255,255,.35)",textDecoration:"line-through",marginBottom:2}}>{f(basePrice)}</div>}
+                    <span style={{fontSize:25,fontWeight:900,letterSpacing:-1,color:insuf?"#ff9f0a":qty>0?accent:"#fff"}}>{f(price)}</span>
+                  </div>
+                  <div style={{textAlign:"center",fontSize:10,color:"rgba(255,255,255,.28)",marginTop:2}}>{saleType==="unidad"?"por unidad":saleType==="docena"?`docena·${p.perDozen}u`:`cajón·${p.perBox}u`}</div>
+                  {insuf&&<div style={{marginTop:6,background:"rgba(255,159,10,.12)",border:"1px solid rgba(255,159,10,.3)",borderRadius:10,padding:"4px 8px",textAlign:"center",fontSize:9,fontWeight:700,color:"#ff9f0a"}}>solo {stockCanal}u · traspaso</div>}
+                </div>
+                <div style={{padding:"0 10px 12px"}}>
+                  {qty===0?(
+                    <button onClick={()=>!sinStock&&add(p)} className="hap" style={{width:"100%",background:sinStock?"rgba(255,255,255,.04)":"rgba(255,255,255,.1)",border:`1px solid ${sinStock?"rgba(255,255,255,.05)":"rgba(255,255,255,.15)"}`,borderRadius:12,padding:"12px",color:sinStock?"rgba(255,255,255,.2)":"rgba(255,255,255,.9)",fontSize:14,fontWeight:700,cursor:sinStock?"not-allowed":"pointer"}}>
+                      {sinStock?"Sin stock":"+ Agregar"}
+                    </button>
+                  ):(
+                    <div style={{display:"flex",alignItems:"center",background:"rgba(0,0,0,.35)",borderRadius:12,border:`1px solid ${insuf?"#ff9f0a40":accent+"40"}`,overflow:"hidden"}}>
+                      <button onClick={()=>setQty(p.id,saleType,qty-1)} className="hap" style={{flex:1,background:"none",border:"none",padding:"12px",color:"rgba(255,255,255,.6)",fontSize:22,fontWeight:300}}>−</button>
+                      <div style={{flex:1,textAlign:"center",fontWeight:900,fontSize:20,color:insuf?"#ff9f0a":accent,borderLeft:`1px solid ${insuf?"#ff9f0a30":accent+"30"}`,borderRight:`1px solid ${insuf?"#ff9f0a30":accent+"30"}`,padding:"12px 4px"}}>{qty}</div>
+                      <button onClick={()=>setQty(p.id,saleType,qty+1)} className="hap" style={{flex:1,background:"none",border:"none",padding:"12px",color:accent,fontSize:22,fontWeight:700}}>+</button>
+                    </div>
                   )}
                 </div>
-
-                {/* CATEGORÍAS */}
-                {cats.length > 1 && (
-                  <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:4, marginBottom:12 }}>
-                    {["Todos", ...cats].map(c => {
-                      const on = (c==="Todos" && !catActiva) || (c === catActiva);
-                      return (
-                        <button key={c} onClick={() => setCatActiva(c==="Todos"?null:c)} className="hap" style={{
-                          background: on ? `${ACCENT}22` : "rgba(255,255,255,.05)",
-                          border:`1px solid ${on ? ACCENT+"55" : "rgba(255,255,255,.08)"}`,
-                          borderRadius:50, padding:"7px 14px",
-                          color: on ? ACCENT : "rgba(255,255,255,.4)",
-                          fontSize:12, fontWeight:on?700:500, cursor:"pointer",
-                          whiteSpace:"nowrap", flexShrink:0, transition:"all .2s" }}>
-                          {c}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* GRID PRODUCTOS */}
-                {productosFiltrados.length === 0 && (
-                  <div style={{ textAlign:"center", color:"rgba(255,255,255,.25)", padding:"50px 0" }}>
-                    <div style={{ fontSize:36, marginBottom:10, opacity:.3 }}>🔍</div>
-                    Sin resultados para "{searchTerm}"
-                  </div>
-                )}
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, paddingBottom:8 }}>
-                  {productosFiltrados.map(p => {
-                    const stockAct  = stockCanal(p);
-                    const precio    = getPrice(p, tipoVenta, canal);
-                    const itemCarr  = carrito.find(c => c._key === `${p.id}-${tipoVenta}`);
-                    const qty       = itemCarr?.qty ?? 0;
-                    const sinStock  = stockAct <= 0;
-                    const stockBajo = stockAct > 0 && stockAct <= (p.stock_min ?? 10);
-
-                    return (
-                      <div key={p.id} style={{
-                        background: qty>0
-                          ? `linear-gradient(145deg,${ACCENT}18,${ACCENT}08)`
-                          : "rgba(255,255,255,.05)",
-                        border:`1.5px solid ${qty>0 ? ACCENT+"55" : "rgba(255,255,255,.08)"}`,
-                        borderRadius:22, overflow:"hidden",
-                        boxShadow: qty>0 ? `0 8px 32px ${ACCENT}20` : "0 4px 16px rgba(0,0,0,.3)",
-                        transition:"all .3s cubic-bezier(.34,1.2,.64,1)",
-                        position:"relative", opacity:sinStock?.35:1 }}>
-
-                        {/* Badge stock */}
-                        <div style={{ position:"absolute", top:9, right:9,
-                          background: sinStock?"rgba(255,69,58,.2)":stockBajo?"rgba(255,159,10,.15)":"rgba(0,0,0,.4)",
-                          border:`1px solid ${sinStock?"rgba(255,69,58,.4)":stockBajo?"rgba(255,159,10,.3)":"rgba(255,255,255,.08)"}`,
-                          borderRadius:8, padding:"3px 8px", fontSize:9, fontWeight:800,
-                          color:sinStock?"#ff453a":stockBajo?"#ff9f0a":"rgba(255,255,255,.5)" }}>
-                          {sinStock ? "AGOTADO" : `${stockAct}u`}
-                        </div>
-                        {/* Badge promo */}
-                        {p.promo_pct > 0 && (
-                          <div style={{ position:"absolute", top:9, left:9,
-                            background:"linear-gradient(135deg,#ff375f,#ff9f0a)",
-                            borderRadius:8, padding:"2px 8px", fontSize:9, fontWeight:900, color:"#fff" }}>
-                            🔥 -{p.promo_pct}%
-                          </div>
-                        )}
-
-                        <div style={{ padding:"20px 14px 10px" }}>
-                          {/* Foto o emoji */}
-                          {p.photo_url ? (
-                            <div style={{ width:60, height:60, borderRadius:14, overflow:"hidden",
-                              margin:"0 auto 8px", border:"1px solid rgba(255,255,255,.1)" }}>
-                              <img src={p.photo_url} alt={p.name} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-                            </div>
-                          ) : (
-                            <div style={{ fontSize:40, textAlign:"center", marginBottom:8 }}>{p.icon || "📦"}</div>
-                          )}
-                          <div style={{ fontWeight:700, fontSize:13, textAlign:"center",
-                            lineHeight:1.3, marginBottom:6, color:"rgba(255,255,255,.9)" }}>{p.name}</div>
-                          <div style={{ textAlign:"center" }}>
-                            <span style={{ fontSize:25, fontWeight:900, letterSpacing:-1,
-                              color: qty>0 ? ACCENT : "#fff", transition:"color .2s" }}>{f(precio)}</span>
-                          </div>
-                          <div style={{ textAlign:"center", fontSize:10, color:"rgba(255,255,255,.28)", marginTop:2 }}>
-                            {tipoVenta==="unidad" ? "por unidad"
-                            :tipoVenta==="docena"  ? `docena · ${p.per_dozen??12}u`
-                            :                       `cajón · ${p.per_box??20}u`}
-                          </div>
-                        </div>
-
-                        {/* Controles +/- */}
-                        <div style={{ padding:"0 10px 12px" }}>
-                          {qty === 0 ? (
-                            <button onClick={() => !sinStock && addToCart(p)} className="hap" style={{
-                              width:"100%",
-                              background: sinStock ? "rgba(255,255,255,.04)" : "rgba(255,255,255,.1)",
-                              border:`1px solid ${sinStock ? "rgba(255,255,255,.05)" : "rgba(255,255,255,.15)"}`,
-                              borderRadius:12, padding:"12px",
-                              color: sinStock ? "rgba(255,255,255,.2)" : "rgba(255,255,255,.9)",
-                              fontSize:14, fontWeight:700,
-                              cursor: sinStock ? "not-allowed" : "pointer" }}>
-                              {sinStock ? "Sin stock" : "+ Agregar"}
-                            </button>
-                          ) : (
-                            <div style={{ display:"flex", alignItems:"center",
-                              background:"rgba(0,0,0,.35)", borderRadius:12,
-                              border:`1px solid ${ACCENT}40`, overflow:"hidden" }}>
-                              <button onClick={() => setQty(`${p.id}-${tipoVenta}`, qty-1)} className="hap" style={{
-                                flex:1, background:"none", border:"none", padding:"12px",
-                                color:"rgba(255,255,255,.6)", fontSize:22, fontWeight:300, cursor:"pointer" }}>−</button>
-                              <div style={{ flex:1, textAlign:"center", fontWeight:900, fontSize:20, color:ACCENT,
-                                borderLeft:`1px solid ${ACCENT}30`, borderRight:`1px solid ${ACCENT}30`,
-                                padding:"12px 4px" }}>{qty}</div>
-                              <button onClick={() => setQty(`${p.id}-${tipoVenta}`, qty+1)} className="hap" style={{
-                                flex:1, background:"none", border:"none", padding:"12px",
-                                color:ACCENT, fontSize:22, fontWeight:700, cursor:"pointer" }}>+</button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
               </div>
-            )
-          )}
-
-          {/* ══ TABS EN CONSTRUCCIÓN ══ */}
-          {tabActivo !== "Vender" && (
-            <div style={{ padding:"80px 32px", textAlign:"center", color:"rgba(255,255,255,.25)" }}>
-              <div style={{ fontSize:52, marginBottom:16, opacity:.3 }}>🚧</div>
-              <p style={{ fontSize:16, fontWeight:600 }}>Módulo de {tabActivo}</p>
-              <p style={{ fontSize:13, marginTop:6 }}>En construcción · Fase 3</p>
-            </div>
-          )}
+            );
+          })}
         </div>
       </div>
-
-      {/* ── BOTÓN FLOTANTE CARRITO ───────────────────── */}
-      {carrito.length > 0 && tabActivo === "Vender" && exito === null && (
-        <div style={{ position:"fixed", bottom:80, left:"50%", transform:"translateX(-50%)",
-          width:"calc(100% - 28px)", maxWidth:452, zIndex:500,
-          animation:"slideUp .3s cubic-bezier(.34,1.2,.64,1) both" }}>
-          <button onClick={() => setCarritoAbierto(true)} className="hap" style={{
-            width:"100%", background:GRAD, border:"none", borderRadius:22,
-            padding:"17px 22px", display:"flex", alignItems:"center", justifyContent:"space-between",
-            cursor:"pointer", boxShadow:`0 16px 48px ${ACCENT}50` }}>
-            <div style={{ background:"rgba(0,0,0,.25)", borderRadius:12, width:40, height:40,
-              display:"flex", alignItems:"center", justifyContent:"center",
-              fontWeight:900, fontSize:17, color:"#fff" }}>{totalItemsCarrito}</div>
-            <div style={{ textAlign:"center", flex:1 }}>
-              <div style={{ fontWeight:800, fontSize:16, color:"#fff" }}>Ver pedido</div>
-              <div style={{ fontSize:12, color:"rgba(255,255,255,.7)", marginTop:1 }}>
-                {carrito.length} producto{carrito.length>1?"s":""}
-              </div>
-            </div>
-            <div style={{ fontWeight:900, fontSize:18, color:"#fff", letterSpacing:-0.5 }}>{f(totalCarrito)}</div>
+      {cart.length>0&&(
+        <div style={{
+          position:"fixed",bottom:80,zIndex:500,
+          left:"50%",transform:"translateX(-50%)",
+          width:"min(calc(100vw - 28px), 452px)",
+          animation:"slideUp .3s cubic-bezier(.34,1.2,.64,1) both"
+        }}>
+          <button onClick={openCart} className="hap" style={{width:"100%",background:ROLES[role].grad,border:"none",borderRadius:22,padding:"17px 22px",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:`0 16px 48px ${accent}50`}}>
+            <div style={{background:"rgba(0,0,0,.25)",borderRadius:12,width:40,height:40,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:17,color:"#fff"}}>{totalItems}</div>
+            <div style={{textAlign:"center",flex:1}}><div style={{fontWeight:800,fontSize:16,color:"#fff"}}>Ver pedido</div><div style={{fontSize:12,color:"rgba(255,255,255,.7)",marginTop:1}}>{cart.length} producto{cart.length>1?"s":""}</div></div>
+            <div style={{fontWeight:900,fontSize:18,color:"#fff",letterSpacing:-0.5}}>{f(total)}</div>
           </button>
         </div>
       )}
-
-      {/* ── BOTTOM NAV ──────────────────────────────── */}
-      <div style={{ flexShrink:0, height:70,
-        background:"rgba(0,0,0,.65)", backdropFilter:"blur(40px) saturate(200%)",
-        WebkitBackdropFilter:"blur(40px) saturate(200%)",
-        borderTop:"1px solid rgba(255,255,255,.06)",
-        display:"flex", position:"relative", zIndex:10 }}>
-        {[
-          {k:"Vender",   i:"🛒"},
-          {k:"Pedidos",  i:"📋"},
-          {k:"Productos",i:"📦"},
-          {k:"Stats",    i:"📊"},
-        ].map(n => {
-          const active = tabActivo === n.k;
-          return (
-            <button key={n.k} onClick={() => setTabActivo(n.k)} className="hap" style={{
-              flex:1, background:"none", border:"none", cursor:"pointer",
-              display:"flex", flexDirection:"column", alignItems:"center",
-              justifyContent:"center", gap:3, position:"relative" }}>
-              <span style={{ fontSize:22,
-                transform: active ? "scale(1.15)" : "scale(1)",
-                transition:"transform .3s cubic-bezier(.34,1.56,.64,1)" }}>{n.i}</span>
-              <span style={{ fontSize:10, fontWeight:active?700:400,
-                color:active?ACCENT:"rgba(255,255,255,.3)", transition:"color .2s",
-                textTransform:"uppercase", letterSpacing:.5 }}>{n.k}</span>
-              {active && (
-                <div style={{ position:"absolute", bottom:0, left:"22%", right:"22%",
-                  height:2.5, background:ACCENT, borderRadius:"2px 2px 0 0",
-                  boxShadow:`0 0 10px ${ACCENT}80` }}/>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── SHEET CARRITO ────────────────────────────── */}
-      <Sheet open={carritoAbierto} onClose={() => setCarritoAbierto(false)} title="Tu pedido">
-        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-
-          {/* Items */}
-          {carrito.map(item => (
-            <div key={item._key} style={{ background:"rgba(255,255,255,.04)",
-              border:"1px solid rgba(255,255,255,.07)", borderRadius:20, padding:16 }}>
-              <div style={{ display:"flex", gap:12, alignItems:"center", marginBottom:12 }}>
-                {item.photo_url
-                  ? <img src={item.photo_url} alt={item.name} style={{ width:40, height:40, borderRadius:12, objectFit:"cover" }}/>
-                  : <span style={{ fontSize:28 }}>{item.icon || "📦"}</span>
-                }
-                <div style={{ flex:1 }}>
-                  <div style={{ fontWeight:700, fontSize:14 }}>{item.name}</div>
-                  <div style={{ fontSize:11, color:"rgba(255,255,255,.35)", marginTop:2 }}>
-                    {item.tipo==="unidad"?"unidad":item.tipo==="docena"?`docena (${item.units}u)`:`cajón (${item.units}u)`}
-                    {" · "}{f(item.precio)} c/u
-                  </div>
-                </div>
-                <button onClick={() => setQty(item._key, 0)} className="hap" style={{
-                  background:"rgba(255,69,58,.15)", border:"1px solid rgba(255,69,58,.3)",
-                  borderRadius:9, padding:"5px 10px", color:"#ff453a", fontSize:11, fontWeight:700, cursor:"pointer" }}>
-                  Quitar
-                </button>
-              </div>
-              {/* Qty control */}
-              <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                <div style={{ display:"flex", alignItems:"center", background:"rgba(0,0,0,.4)",
-                  borderRadius:12, border:"1px solid rgba(255,255,255,.08)", overflow:"hidden" }}>
-                  <button onClick={() => setQty(item._key, item.qty-1)} className="hap" style={{ background:"none", border:"none",
-                    padding:"10px 16px", color:"rgba(255,255,255,.6)", fontSize:20, cursor:"pointer", fontWeight:300 }}>−</button>
-                  <span style={{ fontWeight:800, fontSize:18, padding:"0 4px", minWidth:28, textAlign:"center" }}>{item.qty}</span>
-                  <button onClick={() => setQty(item._key, item.qty+1)} className="hap" style={{ background:"none", border:"none",
-                    padding:"10px 16px", color:ACCENT, fontSize:20, cursor:"pointer", fontWeight:700 }}>+</button>
-                </div>
-                <div style={{ flex:1, textAlign:"right" }}>
-                  <div style={{ fontSize:10, color:"rgba(255,255,255,.3)" }}>subtotal</div>
-                  <div style={{ fontWeight:900, fontSize:22, color:ACCENT, letterSpacing:-0.5 }}>{f(item.precio * item.qty)}</div>
-                </div>
-              </div>
+      <Sheet open={clientOpen} onClose={()=>setClientOpen(false)} title="Datos del cliente">
+        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+          <GInput label="Nombre completo" value={client.name} onChange={v=>setClient({...client,name:v})} placeholder="Ej: María López" icon="👤"/>
+          <GInput label="WhatsApp" value={client.phone} onChange={v=>setClient({...client,phone:v})} placeholder="987 654 321" type="tel" icon="📱"/>
+          <GInput label="Notas" value={notes} onChange={setNotes} placeholder="Dirección, referencia..." icon="📝"/>
+          <button onClick={()=>{if(client.name&&client.phone){setClientOpen(false);if(cart.length>0)setCartOpen(true);}}} className="hap" style={{background:client.name&&client.phone?ROLES[role].grad:"rgba(255,255,255,.06)",color:client.name&&client.phone?"#fff":"rgba(255,255,255,.3)",border:"none",borderRadius:18,padding:"16px",fontSize:15,fontWeight:700,cursor:client.name&&client.phone?"pointer":"not-allowed"}}>Listo →</button>
+        </div>
+      </Sheet>
+      <Sheet open={cartOpen} onClose={()=>setCartOpen(false)} title="Tu pedido">
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {isLive&&client.name&&(
+            <div style={{background:`${accent}12`,border:`1px solid ${accent}30`,borderRadius:16,padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div><div style={{fontWeight:700,fontSize:14}}>{client.name}</div><div style={{color:accent,fontSize:12,marginTop:2}}>📞 {client.phone}</div></div>
+              <button onClick={()=>{setCartOpen(false);setClientOpen(true);}} style={{background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"6px 12px",color:"rgba(255,255,255,.5)",fontSize:12}}>Editar</button>
             </div>
-          ))}
-
-          {/* Total */}
-          <div style={{ background:"rgba(255,255,255,.04)", border:"1px solid rgba(255,255,255,.07)",
-            borderRadius:20, padding:"16px 18px" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div>
-                <div style={{ fontSize:12, color:"rgba(255,255,255,.35)" }}>TOTAL</div>
-                <div style={{ fontSize:11, color:"rgba(255,255,255,.25)", marginTop:1 }}>
-                  {totalItemsCarrito} unidades · canal {canal}
+          )}
+          {cart.map(c=>{
+            const p=productos.find(x=>x.id===c.pid); if(!p) return null;
+            const price=getPrice(p);
+            const units=calcUnits(p,c.type,c.qty);
+            const insuf=units>p[stockKey];
+            return(
+              <div key={`${c.pid}-${c.type}`} style={{background:"rgba(255,255,255,.04)",border:`1px solid ${insuf?"rgba(255,159,10,.35)":"rgba(255,255,255,.07)"}`,borderRadius:20,padding:16}}>
+                <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:12}}>
+                  <span style={{fontSize:26}}>{p.icon}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:700,fontSize:14}}>{p.name}</div>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,.35)",marginTop:2}}>{c.type==="unidad"?"unidad":c.type==="docena"?`docena (${p.perDozen}u)`:`cajón (${p.perBox}u)`} · {f(price)} · <b style={{color:insuf?"#ff9f0a":"rgba(255,255,255,.5)"}}>{units}u</b></div>
+                    {insuf&&<div style={{fontSize:10,color:"#ff9f0a",fontWeight:700,marginTop:3}}>⚠ Solo {p[stockKey]}u → traspaso desde {otherName}</div>}
+                  </div>
+                  <button onClick={()=>setQty(c.pid,c.type,0)} className="hap" style={{background:"rgba(255,69,58,.15)",border:"1px solid rgba(255,69,58,.3)",borderRadius:9,padding:"5px 10px",color:"#ff453a",fontSize:11,fontWeight:700}}>Quitar</button>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:12}}>
+                  <div style={{display:"flex",alignItems:"center",background:"rgba(0,0,0,.4)",borderRadius:12,border:"1px solid rgba(255,255,255,.08)",overflow:"hidden"}}>
+                    <button onClick={()=>setQty(c.pid,c.type,c.qty-1)} className="hap" style={{background:"none",border:"none",padding:"10px 16px",color:"rgba(255,255,255,.6)",fontSize:20,fontWeight:300}}>−</button>
+                    <span style={{fontWeight:800,fontSize:18,padding:"0 4px",minWidth:28,textAlign:"center"}}>{c.qty}</span>
+                    <button onClick={()=>setQty(c.pid,c.type,c.qty+1)} className="hap" style={{background:"none",border:"none",padding:"10px 16px",color:accent,fontSize:20,fontWeight:700}}>+</button>
+                  </div>
+                  <div style={{flex:1,textAlign:"right"}}><div style={{fontSize:10,color:"rgba(255,255,255,.3)"}}>subtotal</div><div style={{fontWeight:900,fontSize:22,color:accent,letterSpacing:-0.5}}>{f(price*c.qty)}</div></div>
                 </div>
               </div>
-              <div style={{ fontSize:34, fontWeight:900, color:ACCENT, letterSpacing:-1 }}>{f(totalCarrito)}</div>
+            );
+          })}
+          <div style={{background:"rgba(255,55,95,.08)",border:"1px solid rgba(255,55,95,.2)",borderRadius:20,padding:16}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#ff375f",letterSpacing:1,marginBottom:12}}>🎉 DESCUENTO ADICIONAL</div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {[0,5,10,15,20].map(pct=>(
+                <button key={pct} onClick={()=>setDiscountPct(pct)} className="hap" style={{background:discountPct===pct?"#ff375f":"rgba(255,255,255,.07)",border:`1px solid ${discountPct===pct?"#ff375f":"rgba(255,255,255,.1)"}`,borderRadius:12,padding:"9px 14px",color:discountPct===pct?"#fff":"rgba(255,255,255,.6)",fontSize:13,fontWeight:700,transition:"all .2s"}}>
+                  {pct===0?"Sin desc.":`${pct}%`}
+                </button>
+              ))}
             </div>
           </div>
-
-          {/* Botón confirmar */}
-          <button onClick={procesarVenta} disabled={procesando} className="hap" style={{
-            background: procesando ? "rgba(255,159,10,.3)" : GRAD,
-            color: "#fff", border:"none", borderRadius:20, padding:"18px",
-            fontSize:17, fontWeight:800, cursor:procesando?"not-allowed":"pointer",
-            boxShadow:procesando ? "none" : `0 12px 40px ${ACCENT}50`,
-            display:"flex", alignItems:"center", justifyContent:"center", gap:10,
-            transition:"all .3s" }}>
-            {procesando ? (
-              <>
-                <div style={{ width:20, height:20, border:"2px solid rgba(255,255,255,.3)", borderTop:"2px solid #fff",
-                  borderRadius:"50%", animation:"spin 1s linear infinite" }}/>
-                Procesando en BD…
-              </>
-            ) : (
-              `Confirmar · ${f(totalCarrito)}`
-            )}
+          <div style={{background:"rgba(99,108,241,.08)",border:"1px solid rgba(99,108,241,.2)",borderRadius:20,padding:16}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#636cf1",letterSpacing:1,marginBottom:10}}>🔒 NOTA INTERNA</div>
+            <GTextarea value={internalNote} onChange={setInternalNote} placeholder="Solo visible para el equipo..." rows={2}/>
+          </div>
+          <div style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.07)",borderRadius:20,padding:"16px 18px"}}>
+            {discountPct>0&&<><div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:13,color:"rgba(255,255,255,.4)"}}>Subtotal</span><span style={{fontSize:13,color:"rgba(255,255,255,.4)",textDecoration:"line-through"}}>{f(subtotal)}</span></div><div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><span style={{fontSize:13,color:"#ff375f",fontWeight:700}}>Descuento {discountPct}%</span><span style={{fontSize:13,color:"#ff375f",fontWeight:700}}>-{f(subtotal-total)}</span></div></>}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div><div style={{fontSize:12,color:"rgba(255,255,255,.35)"}}>TOTAL</div><div style={{fontSize:11,color:"rgba(255,255,255,.25)",marginTop:1}}>{totalItems} uds · {channel}</div></div>
+              <div style={{fontSize:34,fontWeight:900,color:accent,letterSpacing:-1}}>{f(total)}</div>
+            </div>
+          </div>
+          <button onClick={confirm} disabled={procesando} className="hap" style={{background:procesando?"rgba(255,159,10,.3)":ROLES[role].grad,color:"#fff",border:"none",borderRadius:20,padding:"18px",fontSize:17,fontWeight:800,cursor:procesando?"not-allowed":"pointer",boxShadow:procesando?"none":`0 12px 40px ${accent}50`,display:"flex",alignItems:"center",justifyContent:"center",gap:10,transition:"all .3s"}}>
+            {procesando?(<><div style={{width:20,height:20,border:"2px solid rgba(255,255,255,.3)",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin 1s linear infinite"}}/>Procesando en BD…</>):(`Confirmar · ${f(total)}`)}
           </button>
         </div>
       </Sheet>
@@ -653,7 +523,668 @@ function App() {
   );
 }
 
-const root = ReactDOM.createRoot(document.getElementById("root"));
+/* ── PEDIDOS ── */
+function Pedidos({orders,setOrders,productos,accent,role,toast}){
+  const [filter,setFilter]=useState("all");
+  const [search,setSearch]=useState("");
+  const [sel,setSel]=useState(null);
+  const [editNote,setEditNote]=useState("");
+  const filtered=orders.filter(o=>{
+    const mF=filter==="all"||(filter==="pending"&&["pago_pendiente","pago_recibido"].includes(o.status))||(filter==="active"&&["verificado","embalando"].includes(o.status))||(filter==="sent"&&["enviado","entregado"].includes(o.status))||(o.channel===filter);
+    const mS=!search||o.client.toLowerCase().includes(search.toLowerCase())||o.id.toLowerCase().includes(search.toLowerCase());
+    return mF&&mS;
+  });
+  const advance=o=>{
+    const idx=FLOW.indexOf(o.status);
+    if(idx<FLOW.length-1){const ns=FLOW[idx+1];setOrders(prev=>prev.map(x=>x.id===o.id?{...x,status:ns}:x));setSel(s=>s?{...s,status:ns}:s);toast("ok",`${o.id} → ${STATUS_MAP[ns].label}`);}
+  };
+  return(
+    <div style={{height:"100%",overflowY:"auto",padding:16}}>
+      <SearchBar value={search} onChange={setSearch} placeholder="Buscar cliente o ID..."/>
+      <div style={{display:"flex",gap:8,marginBottom:14,overflowX:"auto",paddingBottom:4}}>
+        {[{k:"all",l:"Todos"},{k:"pending",l:"Pendientes"},{k:"active",l:"Activos"},{k:"sent",l:"Enviados"},{k:"tienda",l:"Tienda"},{k:"live",l:"Live"}].map(fi=>(
+          <button key={fi.k} onClick={()=>setFilter(fi.k)} className="hap" style={{background:filter===fi.k?`${accent}22`:"rgba(255,255,255,.05)",border:`1px solid ${filter===fi.k?accent+"50":"rgba(255,255,255,.08)"}`,borderRadius:50,padding:"8px 16px",color:filter===fi.k?accent:"rgba(255,255,255,.4)",fontSize:12,fontWeight:600,whiteSpace:"nowrap",transition:"all .2s"}}>{fi.l}</button>
+        ))}
+      </div>
+      {filtered.length===0&&<div style={{textAlign:"center",color:"rgba(255,255,255,.2)",padding:"50px 0"}}><div style={{fontSize:36,marginBottom:10,opacity:.3}}>📋</div>Sin resultados</div>}
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {filtered.map(o=>(
+          <button key={o.id} onClick={()=>{setSel(o);setEditNote(o.internalNote||"");}} className="hap" style={{background:"rgba(255,255,255,.04)",border:`1px solid ${o.stockAlert?"rgba(255,159,10,.4)":o.internalNote?"rgba(99,108,241,.3)":"rgba(255,255,255,.07)"}`,borderRadius:20,padding:16,textAlign:"left",width:"100%",transition:"all .2s"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:700,fontSize:15,marginBottom:6,display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+                  {o.channel==="live"?"📱":"🏪"} {o.client}
+                  {o.stockAlert&&<span style={{fontSize:10,color:"#ff9f0a",background:"rgba(255,159,10,.15)",padding:"2px 7px",borderRadius:6,fontWeight:700}}>🔀 traspaso</span>}
+                  {o.internalNote&&<span style={{fontSize:10,color:"#636cf1",background:"rgba(99,108,241,.15)",padding:"2px 7px",borderRadius:6}}>nota</span>}
+                </div>
+                <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                  <Pill status={o.status}/>
+                  {o.discount>0&&<span style={{background:"rgba(255,55,95,.15)",color:"#ff375f",border:"1px solid rgba(255,55,95,.3)",borderRadius:10,padding:"2px 8px",fontSize:10,fontWeight:700}}>-{o.discount}%</span>}
+                  <span style={{fontSize:11,color:"rgba(255,255,255,.25)",fontFamily:"monospace"}}>{o.id} · {ago(o.createdAt)}</span>
+                </div>
+              </div>
+              <div style={{fontWeight:900,fontSize:20,color:accent,flexShrink:0}}>{f(o.total)}</div>
+            </div>
+          </button>
+        ))}
+      </div>
+      <Sheet open={!!sel} onClose={()=>setSel(null)} title={sel?.id||""}>
+        {sel&&(
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Pill status={sel.status}/>{sel.discount>0&&<span style={{background:"rgba(255,55,95,.15)",color:"#ff375f",border:"1px solid rgba(255,55,95,.3)",borderRadius:20,padding:"4px 12px",fontSize:12,fontWeight:700}}>🎉 -{sel.discount}%</span>}</div>
+            {sel.client!=="— Tienda —"&&<div style={{background:`${accent}12`,border:`1px solid ${accent}30`,borderRadius:16,padding:"14px 16px"}}><div style={{fontWeight:700,fontSize:15}}>{sel.client}</div>{sel.phone&&<div style={{color:accent,fontSize:13,marginTop:4}}>📞 {sel.phone}</div>}</div>}
+            <div style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.07)",borderRadius:18,padding:"14px 16px"}}>
+              {sel.items.map((it,i)=>{const p=productos.find(x=>x.id===it.pid);return p?(<div key={i} style={{display:"flex",justifyContent:"space-between",padding:"9px 0",borderBottom:i<sel.items.length-1?"1px solid rgba(255,255,255,.06)":"none"}}><span style={{fontSize:14}}>{p.icon} {p.name} <span style={{color:"rgba(255,255,255,.35)",fontSize:12}}>×{it.qty} {it.type} ({it.units}u)</span></span><span style={{fontWeight:700,color:accent}}>{f(it.price*it.qty)}</span></div>):null;})}
+              <div style={{display:"flex",justifyContent:"space-between",paddingTop:10,borderTop:"1px solid rgba(255,255,255,.08)",fontWeight:800,fontSize:20,marginTop:4}}><span>Total</span><span style={{color:accent}}>{f(sel.total)}</span></div>
+            </div>
+            <div style={{background:"rgba(99,108,241,.08)",border:"1px solid rgba(99,108,241,.22)",borderRadius:18,padding:16}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#636cf1",letterSpacing:1,marginBottom:10}}>🔒 NOTA INTERNA</div>
+              <GTextarea value={editNote} onChange={setEditNote} placeholder="Solo el equipo puede ver esto..." rows={2}/>
+              <button onClick={()=>{setOrders(prev=>prev.map(x=>x.id===sel.id?{...x,internalNote:editNote}:x));setSel(s=>({...s,internalNote:editNote}));toast("ok","🔒 Nota guardada");}} className="hap" style={{marginTop:10,background:"rgba(99,108,241,.2)",border:"1px solid rgba(99,108,241,.4)",borderRadius:12,padding:"9px 18px",color:"#636cf1",fontSize:13,fontWeight:700}}>Guardar nota</button>
+            </div>
+            {!["cancelado","entregado"].includes(sel.status)&&<button onClick={()=>advance(sel)} className="hap" style={{background:accent,color:"#000",border:"none",borderRadius:18,padding:"15px",fontSize:15,fontWeight:800,boxShadow:`0 8px 24px ${accent}40`}}>{sel.status==="pago_pendiente"?"💸 Marcar Pago Recibido":sel.status==="pago_recibido"?"✅ Verificar Pago":`Avanzar → ${STATUS_MAP[FLOW[FLOW.indexOf(sel.status)+1]]?.label||""}`}</button>}
+          </div>
+        )}
+      </Sheet>
+    </div>
+  );
+}
+
+/* ── TRASPASOS ── */
+function Traspasos({transfers,setTransfers,productos,setProductos,role,toast}){
+  const accent=ROLES[role].accent;
+  const pending=transfers.filter(t=>t.status==="pendiente");
+  const history=transfers.filter(t=>t.status!=="pendiente");
+  const confirmTrf=t=>{
+    const p=productos.find(x=>x.id===t.pid);if(!p)return;
+    const avail=p[t.deKey];
+    if(avail<t.unidades){toast("err",`❌ Solo ${avail}u en ${t.de}`);return;}
+    setProductos(prev=>prev.map(x=>x.id!==t.pid?x:{...x,[t.deKey]:x[t.deKey]-t.unidades}));
+    setTransfers(prev=>prev.map(x=>x.id===t.id?{...x,status:"confirmado",confirmedAt:new Date(),confirmedBy:role}:x));
+    toast("ok",`✅ Traspaso confirmado · ${t.unidades}u`);
+  };
+  const cancelTrf=t=>{setTransfers(prev=>prev.map(x=>x.id===t.id?{...x,status:"cancelado"}:x));toast("warn",`❌ Traspaso cancelado`);};
+  return(
+    <div style={{height:"100%",overflowY:"auto",padding:16}}>
+      <div style={{fontWeight:800,fontSize:18,marginBottom:4}}>🔀 Traspasos de Stock</div>
+      <div style={{fontSize:12,color:"rgba(255,255,255,.35)",marginBottom:16}}>Confirmar como <b style={{color:accent}}>{ROLES[role].label}</b></div>
+      {pending.length===0&&<div style={{textAlign:"center",padding:"60px 0",color:"rgba(255,255,255,.25)"}}><div style={{fontSize:52,marginBottom:12,opacity:.3}}>✅</div><div style={{fontSize:15,fontWeight:600}}>Sin traspasos pendientes</div></div>}
+      {pending.length>0&&(
+        <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:22}}>
+          <div style={{fontSize:11,color:"#ff9f0a",fontWeight:700,letterSpacing:1.5,marginBottom:6}}>⚠ PENDIENTES</div>
+          {pending.map(t=>{
+            const p=productos.find(x=>x.id===t.pid);
+            const stockOrigen=p?p[t.deKey]:0;
+            const hayStock=stockOrigen>=t.unidades;
+            return(
+              <div key={t.id} style={{background:"rgba(255,159,10,.07)",border:"1px solid rgba(255,159,10,.3)",borderRadius:22,padding:18}}>
+                <div style={{display:"flex",gap:12,alignItems:"flex-start",marginBottom:14}}>
+                  <div style={{width:52,height:52,borderRadius:16,background:"rgba(255,255,255,.06)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>
+                    {t.productPhoto?<img src={t.productPhoto} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:26}}>{t.productIcon}</span>}
+                  </div>
+                  <div style={{flex:1}}><div style={{fontWeight:700,fontSize:15,marginBottom:3}}>{t.productName}</div><div style={{fontSize:11,color:"rgba(255,255,255,.4)"}}>Pedido: <span style={{fontFamily:"monospace",color:"rgba(255,255,255,.65)"}}>{t.orderId}</span></div></div>
+                  <div style={{textAlign:"right",flexShrink:0}}><div style={{fontWeight:900,fontSize:28,color:"#ff9f0a",letterSpacing:-1}}>{t.unidades}</div><div style={{fontSize:10,color:"rgba(255,255,255,.3)"}}>unidades</div></div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:10,background:"rgba(0,0,0,.3)",borderRadius:14,padding:"10px 16px",marginBottom:12}}>
+                  <span style={{fontWeight:700,fontSize:13}}>{t.de==="tienda"?"🏪 Tienda":"📱 Live"}</span>
+                  <div style={{flex:1,height:2,background:"rgba(255,159,10,.4)",position:"relative"}}><div style={{position:"absolute",right:-6,top:-7,color:"#ff9f0a",fontSize:14}}>▶</div></div>
+                  <span style={{fontWeight:700,fontSize:13}}>{t.a==="tienda"?"🏪 Tienda":"📱 Live"}</span>
+                </div>
+                <div style={{fontSize:12,marginBottom:14,fontWeight:hayStock?400:700,color:hayStock?"rgba(255,255,255,.5)":"#ff453a"}}>{hayStock?`✓ Disponibles: ${stockOrigen}u`:`⚠ Solo ${stockOrigen}u disponibles`}</div>
+                <div style={{display:"flex",gap:10}}>
+                  <button onClick={()=>cancelTrf(t)} className="hap" style={{flex:1,background:"rgba(255,69,58,.1)",border:"1px solid rgba(255,69,58,.3)",borderRadius:14,padding:"12px",color:"#ff453a",fontSize:13,fontWeight:700}}>✕ Cancelar</button>
+                  <button onClick={()=>confirmTrf(t)} disabled={!hayStock} className="hap" style={{flex:2,background:hayStock?"linear-gradient(135deg,#30d158,#28b84c)":"rgba(255,255,255,.05)",color:hayStock?"#fff":"rgba(255,255,255,.3)",border:"none",borderRadius:14,padding:"12px",fontSize:14,fontWeight:800,cursor:hayStock?"pointer":"not-allowed",boxShadow:hayStock?"0 8px 24px rgba(48,209,88,.4)":"none"}}>✓ Confirmar</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {history.length>0&&(
+        <><div style={{fontSize:11,color:"rgba(255,255,255,.3)",fontWeight:700,letterSpacing:1.5,marginBottom:10}}>HISTORIAL</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {history.map(t=>(
+            <div key={t.id} style={{background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.06)",borderRadius:18,padding:"14px 16px",display:"flex",gap:12,alignItems:"center"}}>
+              <span style={{fontSize:22,opacity:.6}}>{t.productIcon||"📦"}</span>
+              <div style={{flex:1}}><div style={{fontWeight:600,fontSize:13}}>{t.productName}</div><div style={{fontSize:11,color:"rgba(255,255,255,.3)",marginTop:2}}>{t.de==="tienda"?"🏪":"📱"} → {t.a==="tienda"?"🏪":"📱"} · {t.unidades}u · {ago(t.createdAt)}</div></div>
+              <span style={{background:t.status==="confirmado"?"rgba(48,209,88,.15)":"rgba(255,69,58,.15)",color:t.status==="confirmado"?"#30d158":"#ff453a",border:`1px solid ${t.status==="confirmado"?"rgba(48,209,88,.3)":"rgba(255,69,58,.3)"}`,borderRadius:20,padding:"4px 12px",fontSize:11,fontWeight:700}}>{t.status==="confirmado"?"✓ Ok":"✕ Cancel."}</span>
+            </div>
+          ))}
+        </div></>
+      )}
+    </div>
+  );
+}
+
+/* ── PRODUCTOS ── */
+/* ── FORM PRODUCTO (crear / editar) ── */
+const EMPTY_PROD = () => ({
+  id: null, name:"", sku:"", cat:"", icon:"📦", photo:null,
+  prices:{tienda:0,live:0,docena_unit:0,cajon_unit:0},
+  stockTienda:0, stockLive:0, stockMin:5,
+  perDozen:12, perBox:20,
+  promo:null, active:true,
+});
+const ICONOS = ["📦","🧊","🫙","🪣","🛒","🥡","🫕","🧴","🍶","🫗","🪤","🧺","🧹","🪮","🫧","🍱","🥢","🧃","🫙","🪜"];
+const CATS_DEFAULT = ["Frascos","Tuppers","Utensilios","Accesorios","Bolsas","Otros"];
+
+function FormProducto({prod,onSave,onClose,accent,allCats}){
+  const isEdit=!!prod.id;
+  const [f_,setF_]=useState(prod);
+  const [promoPct,setPromoPct]=useState(prod.promo?.pct||0);
+  const [showIconPicker,setShowIconPicker]=useState(false);
+
+  const set=(k,v)=>setF_(p=>({...p,[k]:v}));
+  const setPrice=(k,v)=>setF_(p=>({...p,prices:{...p.prices,[k]:Number(v)||0}}));
+  const allCatsOpts=[...new Set([...CATS_DEFAULT,...allCats])];
+
+  const handleSave=()=>{
+    if(!f_.name.trim()){alert("El nombre es obligatorio");return;}
+    const saved={
+      ...f_,
+      id: f_.id || Date.now(),
+      sku: f_.sku||String(Date.now()).slice(-6),
+      promo: promoPct>0?{pct:promoPct,label:`${promoPct}% OFF`}:null,
+    };
+    onSave(saved);
+  };
+
+  const SectionLabel=({t,c="#636cf1"})=>(
+    <div style={{fontSize:11,fontWeight:700,color:c,letterSpacing:1.5,textTransform:"uppercase",marginBottom:10,marginTop:4}}>{t}</div>
+  );
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:16}}>
+
+      {/* FOTO + ICONO */}
+      <div style={{display:"flex",gap:14,alignItems:"center"}}>
+        <div style={{position:"relative",flexShrink:0}}>
+          <div onClick={()=>setShowIconPicker(v=>!v)} className="hap" style={{width:72,height:72,borderRadius:20,
+            background:f_.photo?"none":"rgba(255,255,255,.06)",
+            border:`2px dashed ${showIconPicker?accent:"rgba(255,255,255,.15)"}`,
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontSize:36,overflow:"hidden",cursor:"pointer",transition:"border-color .2s"}}>
+            {f_.photo?<img src={f_.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:f_.icon}
+          </div>
+          {f_.photo&&<button onClick={()=>set("photo",null)} style={{position:"absolute",top:-6,right:-6,background:"#ff453a",border:"none",borderRadius:50,width:20,height:20,color:"#fff",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>×</button>}
+        </div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:12,color:"rgba(255,255,255,.4)",marginBottom:8}}>Toca el emoji para cambiar el ícono</div>
+          <label style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.12)",borderRadius:12,padding:"9px 14px",cursor:"pointer",fontSize:13,color:"rgba(255,255,255,.6)",fontWeight:600}}>
+            📷 Foto URL
+            <input type="text" value={f_.photo||""} onChange={e=>set("photo",e.target.value||null)} placeholder="https://..." style={{background:"none",border:"none",outline:"none",color:"#fff",fontSize:13,width:120}}/>
+          </label>
+        </div>
+      </div>
+
+      {/* ICON PICKER */}
+      {showIconPicker&&(
+        <div style={{background:"rgba(0,0,0,.5)",border:"1px solid rgba(255,255,255,.1)",borderRadius:18,padding:14}}>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+            {ICONOS.map(ic=>(
+              <button key={ic} onClick={()=>{set("icon",ic);setShowIconPicker(false);}} className="hap" style={{background:f_.icon===ic?`${accent}30`:"rgba(255,255,255,.06)",border:`1px solid ${f_.icon===ic?accent+"60":"rgba(255,255,255,.08)"}`,borderRadius:12,width:44,height:44,fontSize:22,cursor:"pointer"}}>{ic}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* INFO BÁSICA */}
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        <SectionLabel t="📋 Información básica" c="#5ac8fa"/>
+        <GInput label="Nombre del producto *" value={f_.name} onChange={v=>set("name",v)} placeholder="Ej: Frasco Hermético 1L" icon="📝"/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <GInput label="SKU / Código" value={f_.sku} onChange={v=>set("sku",v)} placeholder="FRH-001" icon="🔖"/>
+          <div>
+            <div style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,.35)",letterSpacing:1.2,textTransform:"uppercase",marginBottom:7}}>Categoría</div>
+            <select value={f_.cat} onChange={e=>set("cat",e.target.value)} style={{width:"100%",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:14,padding:"13px 16px",color:f_.cat?"#fff":"rgba(255,255,255,.4)",fontSize:14,outline:"none",appearance:"none"}}>
+              <option value="">— elegir —</option>
+              {allCatsOpts.map(c=><option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* PRECIOS */}
+      <div style={{background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)",borderRadius:18,padding:16}}>
+        <SectionLabel t="💰 Precios" c="#ff9f0a"/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+          <GInput label="🏪 Tienda" value={f_.prices.tienda||""} onChange={v=>setPrice("tienda",v)} type="number" placeholder="0.00"/>
+          <GInput label="📱 Live / WA" value={f_.prices.live||""} onChange={v=>setPrice("live",v)} type="number" placeholder="0.00"/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+          <GInput label="📦 Precio x unidad en docena" value={f_.prices.docena_unit||""} onChange={v=>setPrice("docena_unit",v)} type="number" placeholder="0.00"/>
+          <GInput label="🚛 Precio x unidad en cajón" value={f_.prices.cajon_unit||""} onChange={v=>setPrice("cajon_unit",v)} type="number" placeholder="0.00"/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <GInput label="Unidades por docena" value={f_.perDozen||""} onChange={v=>set("perDozen",Number(v)||12)} type="number" placeholder="12"/>
+          <GInput label="Unidades por cajón" value={f_.perBox||""} onChange={v=>set("perBox",Number(v)||20)} type="number" placeholder="20"/>
+        </div>
+        {/* Preview precios totales */}
+        {(f_.prices.docena_unit>0||f_.prices.cajon_unit>0)&&(
+          <div style={{display:"flex",gap:8,marginTop:10}}>
+            {f_.prices.docena_unit>0&&<div style={{flex:1,background:"rgba(255,159,10,.08)",border:"1px solid rgba(255,159,10,.2)",borderRadius:10,padding:"8px 10px",textAlign:"center"}}><div style={{fontSize:9,color:"#ff9f0a",fontWeight:700,marginBottom:2}}>DOCENA TOTAL</div><div style={{fontWeight:900,color:"#ff9f0a",fontSize:15}}>S/ {(f_.prices.docena_unit*(f_.perDozen||12)).toFixed(2)}</div></div>}
+            {f_.prices.cajon_unit>0&&<div style={{flex:1,background:"rgba(90,200,250,.08)",border:"1px solid rgba(90,200,250,.2)",borderRadius:10,padding:"8px 10px",textAlign:"center"}}><div style={{fontSize:9,color:"#5ac8fa",fontWeight:700,marginBottom:2}}>CAJÓN TOTAL</div><div style={{fontWeight:900,color:"#5ac8fa",fontSize:15}}>S/ {(f_.prices.cajon_unit*(f_.perBox||20)).toFixed(2)}</div></div>}
+          </div>
+        )}
+      </div>
+
+      {/* STOCK INICIAL */}
+      <div style={{background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)",borderRadius:18,padding:16}}>
+        <SectionLabel t="📦 Stock inicial por canal" c="#30d158"/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+          <GInput label="🏪 Stock Tienda" value={f_.stockTienda||""} onChange={v=>set("stockTienda",Number(v)||0)} type="number" placeholder="0"/>
+          <GInput label="📱 Stock Live" value={f_.stockLive||""} onChange={v=>set("stockLive",Number(v)||0)} type="number" placeholder="0"/>
+        </div>
+        <GInput label="⚠ Stock mínimo (alerta)" value={f_.stockMin||""} onChange={v=>set("stockMin",Number(v)||5)} type="number" placeholder="5"/>
+        <div style={{fontSize:11,color:"rgba(255,255,255,.3)",marginTop:8}}>Se mostrará alerta cuando cualquier canal baje de este mínimo</div>
+      </div>
+
+      {/* PROMOCIÓN */}
+      <div style={{background:"rgba(255,55,95,.06)",border:"1px solid rgba(255,55,95,.18)",borderRadius:18,padding:16}}>
+        <SectionLabel t="🔥 Promoción (opcional)" c="#ff375f"/>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}>
+          {[0,5,10,15,20,25,30].map(pct=>(
+            <button key={pct} onClick={()=>setPromoPct(pct)} className="hap" style={{background:promoPct===pct?(pct===0?"rgba(255,255,255,.1)":"#ff375f"):"rgba(255,255,255,.06)",border:`1px solid ${promoPct===pct?(pct===0?"rgba(255,255,255,.15)":"#ff375f"):"rgba(255,255,255,.1)"}`,borderRadius:12,padding:"9px 14px",color:promoPct===pct&&pct>0?"#fff":"rgba(255,255,255,.6)",fontSize:13,fontWeight:700,transition:"all .2s"}}>
+              {pct===0?"Sin promo":`-${pct}%`}
+            </button>
+          ))}
+        </div>
+        {promoPct>0&&f_.prices.tienda>0&&(
+          <div style={{background:"rgba(255,55,95,.1)",border:"1px solid rgba(255,55,95,.25)",borderRadius:12,padding:"10px 14px",fontSize:13}}>
+            🏪 {f(f_.prices.tienda)} → <b style={{color:"#ff375f"}}>{f(f_.prices.tienda*(1-promoPct/100))}</b>
+            {f_.prices.live>0&&<> · 📱 {f(f_.prices.live)} → <b style={{color:"#ff375f"}}>{f(f_.prices.live*(1-promoPct/100))}</b></>}
+          </div>
+        )}
+      </div>
+
+      {/* ACTIVO */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.07)",borderRadius:16,padding:"14px 18px"}}>
+        <div><div style={{fontWeight:600,fontSize:14}}>Producto activo</div><div style={{fontSize:12,color:"rgba(255,255,255,.35)",marginTop:2}}>Visible en la pantalla de venta</div></div>
+        <button onClick={()=>set("active",!f_.active)} className="hap" style={{width:52,height:30,borderRadius:15,background:f_.active?accent:"rgba(255,255,255,.1)",border:"none",position:"relative",transition:"background .3s",cursor:"pointer"}}>
+          <div style={{position:"absolute",top:3,left:f_.active?24:3,width:24,height:24,borderRadius:12,background:"#fff",transition:"left .3s",boxShadow:"0 2px 8px rgba(0,0,0,.4)"}}/>
+        </button>
+      </div>
+
+      {/* GUARDAR */}
+      <button onClick={handleSave} className="hap" style={{background:accent,color:accent==="#bf5af2"?"#fff":"#000",border:"none",borderRadius:20,padding:"17px",fontSize:16,fontWeight:800,boxShadow:`0 10px 32px ${accent}50`,marginTop:4}}>
+        {isEdit?"💾 Guardar cambios":"✨ Crear producto"}
+      </button>
+    </div>
+  );
+}
+
+function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
+  const accent=ROLES[role].accent;
+  const allCats=[...new Set(productos.map(p=>p.cat).filter(Boolean))];
+  const [search,setSearch]=useState("");
+  const [catFilter,setCatFilter]=useState(null);
+  const [stockP,setStockP]=useState(null);
+  const [stockMode,setStockMode]=useState("tienda");
+  const [delta,setDelta]=useState("");
+  const [editP,setEditP]=useState(null);   // null=cerrado, EMPTY_PROD()=nuevo, prod=editar
+  const [vista,setVista]=useState("grid"); // "grid"|"lista"
+
+  const cats=[...new Set(productos.map(p=>p.cat).filter(Boolean))];
+  const filtered=useMemo(()=>productos.filter(p=>
+    (!catFilter||p.cat===catFilter)&&
+    (!search||p.name.toLowerCase().includes(search.toLowerCase())||(p.sku||"").toLowerCase().includes(search.toLowerCase()))
+  ),[productos,catFilter,search]);
+
+  const adjustStock=(p,d)=>{
+    const n=Math.max(0,Number(d));if(n<=0){toast("err","Ingresá un número mayor a 0");return;}
+    setProductos(prev=>prev.map(x=>{if(x.id!==p.id)return x;if(stockMode==="tienda")return{...x,stockTienda:x.stockTienda+n};if(stockMode==="live")return{...x,stockLive:x.stockLive+n};return{...x,stockTienda:x.stockTienda+n,stockLive:x.stockLive+n};}));
+    toast("ok",`📦 +${n}u confirmado: ${p.name}`);setStockP(null);setDelta("");setStockMode("tienda");
+  };
+
+  const saveProduct=prod=>{
+    if(prod.id&&productos.find(x=>x.id===prod.id)){
+      setProductos(prev=>prev.map(x=>x.id===prod.id?prod:x));
+      toast("ok",`✅ "${prod.name}" actualizado`);
+    } else {
+      setProductos(prev=>[prod,...prev]);
+      toast("ok",`✨ "${prod.name}" creado`);
+    }
+    setEditP(null);
+  };
+
+  const toggleActive=p=>{
+    setProductos(prev=>prev.map(x=>x.id===p.id?{...x,active:!x.active}:x));
+    toast(p.active?"warn":"ok",`${p.active?"⏸ Pausado":"▶ Activado"}: ${p.name}`);
+  };
+
+  return(
+    <div style={{height:"100%",overflowY:"auto",padding:16}}>
+
+      {/* HEADER */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,gap:10}}>
+        <span style={{fontWeight:800,fontSize:18}}>📦 Productos</span>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={recargarProductos} className="hap" style={{background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.1)",borderRadius:12,padding:"8px 12px",color:"rgba(255,255,255,.5)",fontSize:12,fontWeight:600}}>↻</button>
+          <button onClick={()=>setVista(v=>v==="grid"?"lista":"grid")} className="hap" style={{background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.1)",borderRadius:12,padding:"8px 12px",color:"rgba(255,255,255,.5)",fontSize:14}}>
+            {vista==="grid"?"☰":"⊞"}
+          </button>
+          <button onClick={()=>setEditP(EMPTY_PROD())} className="hap" style={{background:accent,border:"none",borderRadius:12,padding:"8px 16px",color:accent==="#bf5af2"?"#fff":"#000",fontSize:13,fontWeight:700,boxShadow:`0 4px 16px ${accent}40`}}>+ Nuevo</button>
+        </div>
+      </div>
+
+      <SearchBar value={search} onChange={setSearch} placeholder="Buscar nombre o SKU..."/>
+      <CatChips cats={cats} active={catFilter} onChange={setCatFilter} accent={accent}/>
+
+      {/* RESUMEN */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:14}}>
+        {[
+          {l:"Total",v:productos.length,c:"rgba(255,255,255,.5)"},
+          {l:"Activos",v:productos.filter(p=>p.active).length,c:"#30d158"},
+          {l:"Stock bajo",v:productos.filter(p=>p.active&&(p.stockTienda<=p.stockMin||p.stockLive<=p.stockMin)).length,c:"#ff9f0a"},
+        ].map((s,i)=>(
+          <div key={i} style={{background:"rgba(255,255,255,.04)",border:`1px solid ${s.c}28`,borderRadius:14,padding:"10px 12px",textAlign:"center"}}>
+            <div style={{fontWeight:900,fontSize:22,color:s.c}}>{s.v}</div>
+            <div style={{fontSize:10,color:"rgba(255,255,255,.35)",marginTop:2}}>{s.l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* LISTA / GRID */}
+      {vista==="grid"?(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:10}}>
+          {filtered.map(p=>{
+            const lowT=p.stockTienda<=p.stockMin,lowL=p.stockLive<=p.stockMin;
+            return(
+              <div key={p.id} style={{background:"rgba(255,255,255,.04)",border:`1px solid ${(lowT||lowL)?"rgba(255,159,10,.35)":p.promo?"rgba(255,55,95,.2)":"rgba(255,255,255,.07)"}`,borderRadius:20,padding:14,opacity:p.active?1:.45,position:"relative"}}>
+                {!p.active&&<div style={{position:"absolute",top:10,left:10,background:"rgba(255,69,58,.2)",border:"1px solid rgba(255,69,58,.4)",borderRadius:8,padding:"2px 8px",fontSize:9,fontWeight:800,color:"#ff453a"}}>PAUSADO</div>}
+                {p.promo&&p.active&&<div style={{position:"absolute",top:10,left:10,background:"linear-gradient(135deg,#ff375f,#ff9f0a)",borderRadius:8,padding:"2px 8px",fontSize:9,fontWeight:900,color:"#fff"}}>🔥 {p.promo.label}</div>}
+                <div style={{textAlign:"center",paddingTop:p.promo||!p.active?16:0}}>
+                  {p.photo?<div style={{width:56,height:56,borderRadius:14,overflow:"hidden",margin:"0 auto 8px",border:"1px solid rgba(255,255,255,.1)"}}><img src={p.photo} alt={p.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>
+                  :<div style={{fontSize:38,marginBottom:8}}>{p.icon}</div>}
+                  <div style={{fontWeight:700,fontSize:13,marginBottom:4,lineHeight:1.3}}>{p.name}</div>
+                  <div style={{fontSize:10,color:"rgba(255,255,255,.3)",fontFamily:"monospace",marginBottom:8}}>{p.sku}</div>
+                  <div style={{fontWeight:900,fontSize:20,color:accent,letterSpacing:-0.5}}>{f(p.prices.tienda)}</div>
+                  <div style={{fontSize:10,color:"rgba(255,255,255,.3)",marginBottom:8}}>tienda</div>
+                  <StockGauge p={p}/>
+                </div>
+                <div style={{display:"flex",gap:6,marginTop:12}}>
+                  <button onClick={()=>setEditP(p)} className="hap" style={{flex:1,background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.1)",borderRadius:10,padding:"8px 4px",color:"rgba(255,255,255,.6)",fontSize:12,fontWeight:600}}>✏️ Editar</button>
+                  <button onClick={()=>{setStockP(p);setDelta("");setStockMode("tienda");}} className="hap" style={{flex:1,background:`${accent}15`,border:`1px solid ${accent}30`,borderRadius:10,padding:"8px 4px",color:accent,fontSize:12,fontWeight:700}}>📥 Stock</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ):(
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {filtered.map(p=>{
+            const lowT=p.stockTienda<=p.stockMin,lowL=p.stockLive<=p.stockMin;
+            return(
+              <div key={p.id} style={{background:"rgba(255,255,255,.04)",border:`1px solid ${(lowT||lowL)?"rgba(255,159,10,.35)":p.promo?"rgba(255,55,95,.2)":"rgba(255,255,255,.07)"}`,borderRadius:20,padding:14,opacity:p.active?1:.45}}>
+                <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:10}}>
+                  <div style={{width:52,height:52,borderRadius:14,overflow:"hidden",flexShrink:0,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    {p.photo?<img src={p.photo} alt={p.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:24}}>{p.icon}</span>}
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:700,fontSize:14,display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+                      {p.name}
+                      {p.promo&&<span style={{background:"linear-gradient(135deg,#ff375f,#ff9f0a)",borderRadius:6,padding:"1px 7px",fontSize:9,fontWeight:900,color:"#fff"}}>🔥 {p.promo.label}</span>}
+                      {!p.active&&<span style={{background:"rgba(255,69,58,.2)",border:"1px solid rgba(255,69,58,.4)",borderRadius:6,padding:"1px 7px",fontSize:9,fontWeight:800,color:"#ff453a"}}>PAUSADO</span>}
+                    </div>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,.3)",fontFamily:"monospace",marginTop:2}}>{p.sku} · {p.cat}</div>
+                  </div>
+                  <div style={{textAlign:"right",flexShrink:0}}>
+                    <div style={{fontWeight:900,fontSize:18,color:accent}}>{f(p.prices.tienda)}</div>
+                    <div style={{fontSize:10,color:"rgba(255,255,255,.3)"}}>📱 {f(p.prices.live)}</div>
+                  </div>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:5,marginBottom:10}}>
+                  {[{l:"🏪",v:p.prices.tienda},{l:"📱",v:p.prices.live},{l:"📦",v:p.prices.docena_unit},{l:"🚛",v:p.prices.cajon_unit}].map((ch,i)=>(
+                    <div key={i} style={{background:"rgba(0,0,0,.3)",borderRadius:10,padding:"6px 4px",textAlign:"center"}}><div style={{fontSize:11,marginBottom:2}}>{ch.l}</div><div style={{fontWeight:800,fontSize:11}}>{f(ch.v)}</div></div>
+                  ))}
+                </div>
+                <StockGauge p={p}/>
+                <div style={{display:"flex",gap:8,marginTop:12}}>
+                  <button onClick={()=>setEditP(p)} className="hap" style={{flex:1,background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.1)",borderRadius:12,padding:"9px 8px",color:"rgba(255,255,255,.6)",fontSize:12,fontWeight:600}}>✏️ Editar</button>
+                  <button onClick={()=>{setStockP(p);setDelta("");setStockMode("tienda");}} className="hap" style={{flex:1,background:`${accent}15`,border:`1px solid ${accent}30`,borderRadius:12,padding:"9px 8px",color:accent,fontSize:12,fontWeight:700}}>📥 Stock</button>
+                  <button onClick={()=>toggleActive(p)} className="hap" style={{flex:1,background:p.active?"rgba(255,69,58,.1)":"rgba(48,209,88,.1)",border:`1px solid ${p.active?"rgba(255,69,58,.3)":"rgba(48,209,88,.3)"}`,borderRadius:12,padding:"9px 8px",color:p.active?"#ff453a":"#30d158",fontSize:12,fontWeight:700}}>{p.active?"⏸ Pausar":"▶ Activar"}</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {filtered.length===0&&(
+        <div style={{textAlign:"center",color:"rgba(255,255,255,.2)",padding:"50px 0"}}>
+          <div style={{fontSize:36,marginBottom:10,opacity:.3}}>📦</div>
+          {search?`Sin resultados para "${search}"`:"No hay productos"}
+          {!search&&<div style={{marginTop:16}}><button onClick={()=>setEditP(EMPTY_PROD())} className="hap" style={{background:accent,border:"none",borderRadius:14,padding:"12px 24px",color:accent==="#bf5af2"?"#fff":"#000",fontSize:14,fontWeight:700}}>+ Crear primer producto</button></div>}
+        </div>
+      )}
+
+      {/* SHEET STOCK */}
+      <Sheet open={!!stockP} onClose={()=>setStockP(null)} title={`📥 Ingresar Stock`}>
+        {stockP&&(
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.08)",borderRadius:20,padding:18}}>
+              <div style={{fontWeight:700,fontSize:15,marginBottom:12}}>{stockP.icon} {stockP.name}</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <div style={{background:"rgba(255,159,10,.1)",border:"1px solid rgba(255,159,10,.3)",borderRadius:14,padding:12,textAlign:"center"}}><div style={{fontSize:11,color:"#ff9f0a",fontWeight:600,marginBottom:4}}>🏪 TIENDA</div><div style={{fontSize:28,fontWeight:900,color:"#ff9f0a"}}>{stockP.stockTienda}</div></div>
+                <div style={{background:"rgba(48,209,88,.1)",border:"1px solid rgba(48,209,88,.3)",borderRadius:14,padding:12,textAlign:"center"}}><div style={{fontSize:11,color:"#30d158",fontWeight:600,marginBottom:4}}>📱 LIVE</div><div style={{fontSize:28,fontWeight:900,color:"#30d158"}}>{stockP.stockLive}</div></div>
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,.35)",letterSpacing:1.2,textTransform:"uppercase",marginBottom:8}}>¿A qué canal ingresan?</div>
+              <div style={{display:"flex",gap:8}}>
+                {[{k:"tienda",l:"🏪 Tienda"},{k:"live",l:"📱 Live"},{k:"ambos",l:"🔀 Ambos"}].map(m=>(
+                  <button key={m.k} onClick={()=>setStockMode(m.k)} className="hap" style={{flex:1,background:stockMode===m.k?`${accent}22`:"rgba(255,255,255,.06)",border:`1px solid ${stockMode===m.k?accent+"55":"rgba(255,255,255,.08)"}`,borderRadius:14,padding:"11px 4px",color:stockMode===m.k?accent:"rgba(255,255,255,.5)",fontSize:12,fontWeight:stockMode===m.k?700:500,transition:"all .2s"}}>{m.l}</button>
+                ))}
+              </div>
+            </div>
+            <GInput label="Unidades a ingresar" value={delta} onChange={setDelta} type="number" placeholder="Ej: 60"/>
+            {delta&&Number(delta)>0&&<div style={{background:"rgba(48,209,88,.08)",border:"1px solid rgba(48,209,88,.2)",borderRadius:14,padding:14,fontSize:13}}>
+              {stockMode==="tienda"&&`🏪 Tienda: ${stockP.stockTienda} → ${stockP.stockTienda+Number(delta)}u`}
+              {stockMode==="live"&&`📱 Live: ${stockP.stockLive} → ${stockP.stockLive+Number(delta)}u`}
+              {stockMode==="ambos"&&`🏪 +${Number(delta)}u  y  📱 +${Number(delta)}u`}
+            </div>}
+            <button onClick={()=>adjustStock(stockP,delta)} disabled={!delta||Number(delta)<=0} className="hap" style={{background:delta&&Number(delta)>0?"linear-gradient(135deg,#30d158,#28b84c)":"rgba(255,255,255,.05)",color:delta&&Number(delta)>0?"#fff":"rgba(255,255,255,.2)",border:"none",borderRadius:18,padding:"16px",fontSize:15,fontWeight:700,cursor:delta&&Number(delta)>0?"pointer":"not-allowed"}}>Confirmar Ingreso</button>
+          </div>
+        )}
+      </Sheet>
+
+      {/* SHEET CREAR / EDITAR */}
+      <Sheet open={!!editP} onClose={()=>setEditP(null)} title={editP?.id?"✏️ Editar producto":"✨ Nuevo producto"}>
+        {editP&&<FormProducto prod={editP} onSave={saveProduct} onClose={()=>setEditP(null)} accent={accent} allCats={allCats}/>}
+      </Sheet>
+
+    </div>
+  );
+}
+
+/* ── DASHBOARD ── */
+function Dashboard({orders,productos,transfers}){
+  const accent="#bf5af2";
+  const confirmed=orders.filter(o=>!["cancelado","pago_pendiente"].includes(o.status));
+  const totalRev=confirmed.reduce((s,o)=>s+o.total,0);
+  const todayO=orders.filter(o=>new Date(o.createdAt).toDateString()===new Date().toDateString());
+  const pendPay=orders.filter(o=>["pago_pendiente","pago_recibido"].includes(o.status));
+  const pendTrf=transfers.filter(t=>t.status==="pendiente");
+  const byChannel={tienda:0,live:0};
+  confirmed.forEach(o=>{byChannel[o.channel]=(byChannel[o.channel]||0)+o.total;});
+  const topProds=useMemo(()=>{const m={};orders.forEach(o=>o.items.forEach(it=>{if(!m[it.pid])m[it.pid]={pid:it.pid,rev:0,qty:0};m[it.pid].rev+=it.price*it.qty;m[it.pid].qty+=it.qty;}));return Object.values(m).sort((a,b)=>b.rev-a.rev).slice(0,5);},[orders]);
+  const last7=useMemo(()=>{const days=[];for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const rev=orders.filter(o=>new Date(o.createdAt).toDateString()===d.toDateString()&&o.status!=="cancelado").reduce((s,o)=>s+o.total,0);days.push({label:d.toLocaleDateString("es",{weekday:"short"}),rev});}return days;},[orders]);
+  const maxRev=Math.max(...last7.map(d=>d.rev),1);
+  const sellerStats=useMemo(()=>{const m={};orders.filter(o=>o.status!=="cancelado").forEach(o=>{const s=o.seller||"?";if(!m[s])m[s]={seller:s,rev:0,count:0};m[s].rev+=o.total;m[s].count++;});return Object.values(m).sort((a,b)=>b.rev-a.rev);},[orders]);
+  return(
+    <div style={{height:"100%",overflowY:"auto",padding:"16px 16px 32px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <div style={{fontWeight:900,fontSize:20,letterSpacing:-0.5}}>Dashboard ✦</div>
+        <div style={{fontSize:10,color:"#bf5af2",background:"rgba(191,90,242,.12)",border:"1px solid rgba(191,90,242,.3)",borderRadius:10,padding:"4px 10px",fontWeight:700}}>SOLO ADMIN</div>
+      </div>
+      {(pendPay.length>0||pendTrf.length>0)&&(
+        <div style={{display:"flex",gap:10,marginBottom:14}}>
+          {pendPay.length>0&&<div style={{flex:1,background:"rgba(255,159,10,.1)",border:"1px solid rgba(255,159,10,.3)",borderRadius:16,padding:"12px 14px",display:"flex",gap:10,alignItems:"center"}}><div style={{fontSize:22,animation:"pulse 2s infinite"}}>🔔</div><div><div style={{fontWeight:800,fontSize:13,color:"#ff9f0a"}}>{pendPay.length} pagos</div><div style={{fontSize:10,color:"rgba(255,255,255,.4)"}}>por verificar</div></div></div>}
+          {pendTrf.length>0&&<div style={{flex:1,background:"rgba(255,69,58,.08)",border:"1px solid rgba(255,69,58,.25)",borderRadius:16,padding:"12px 14px",display:"flex",gap:10,alignItems:"center"}}><div style={{fontSize:22,animation:"pulse 2s infinite"}}>🔀</div><div><div style={{fontWeight:800,fontSize:13,color:"#ff453a"}}>{pendTrf.length} traspasos</div><div style={{fontSize:10,color:"rgba(255,255,255,.4)"}}>sin confirmar</div></div></div>}
+        </div>
+      )}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+        {[{l:"Total facturado",v:f(totalRev),c:accent,icon:"💰",sub:`${confirmed.length} pedidos`},{l:"Hoy",v:f(todayO.reduce((s,o)=>s+o.total,0)),c:"#5ac8fa",icon:"📅",sub:`${todayO.length} ventas`},{l:"🏪 Tienda",v:f(byChannel.tienda),c:"#ff9f0a",icon:"🏪",sub:"canal físico"},{l:"📱 Live/WA",v:f(byChannel.live),c:"#30d158",icon:"📱",sub:"canal online"}].map((st,i)=>(
+          <div key={i} style={{background:"rgba(255,255,255,.05)",border:`1px solid ${st.c}28`,borderRadius:20,padding:"16px 14px"}}><div style={{fontSize:22,marginBottom:6}}>{st.icon}</div><div style={{fontWeight:900,fontSize:20,color:st.c,letterSpacing:-0.5}}>{st.v}</div><div style={{fontSize:11,color:"rgba(255,255,255,.5)",marginTop:4}}>{st.l}</div><div style={{fontSize:10,color:"rgba(255,255,255,.25)",marginTop:1}}>{st.sub}</div></div>
+        ))}
+      </div>
+      <div style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.07)",borderRadius:22,padding:"18px 16px",marginBottom:14}}>
+        <div style={{fontSize:12,color:"rgba(255,255,255,.4)",fontWeight:700,letterSpacing:1,marginBottom:16}}>VENTAS ÚLTIMOS 7 DÍAS</div>
+        <div style={{display:"flex",gap:8,alignItems:"flex-end",height:90}}>
+          {last7.map((d,i)=>{const h=d.rev>0?Math.max(14,Math.round((d.rev/maxRev)*80)):6;const isT=i===6;return(<div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:5}}><div style={{width:"100%",height:h,background:isT?accent:d.rev>0?"rgba(255,255,255,.15)":"rgba(255,255,255,.06)",borderRadius:6,boxShadow:isT?`0 4px 16px ${accent}50`:"none"}}/><div style={{fontSize:9,color:isT?accent:"rgba(255,255,255,.3)",fontWeight:isT?800:400}}>{d.label}</div></div>);})}
+        </div>
+      </div>
+      <div style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.07)",borderRadius:22,padding:"18px 16px",marginBottom:14}}>
+        <div style={{fontSize:12,color:"rgba(255,255,255,.4)",fontWeight:700,letterSpacing:1,marginBottom:14}}>VENTAS POR CANAL</div>
+        {[{ch:"tienda",l:"🏪 Tienda",c:"#ff9f0a"},{ch:"live",l:"📱 Live/WA",c:"#30d158"}].map(({ch,l,c})=>{const rev=byChannel[ch],pct=totalRev>0?Math.round((rev/totalRev)*100):0;return(<div key={ch} style={{marginBottom:14}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:13,fontWeight:600}}>{l}</span><span style={{fontWeight:800,color:c}}>{pct}% · {f(rev)}</span></div><div style={{height:8,background:"rgba(255,255,255,.07)",borderRadius:4,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:c,borderRadius:4}}/></div></div>);})}
+      </div>
+      <div style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.07)",borderRadius:22,padding:"18px 16px",marginBottom:14}}>
+        <div style={{fontSize:12,color:"rgba(255,255,255,.4)",fontWeight:700,letterSpacing:1,marginBottom:14}}>🏆 TOP PRODUCTOS</div>
+        {topProds.length===0&&<div style={{color:"rgba(255,255,255,.2)",textAlign:"center",padding:"16px 0",fontSize:13}}>Sin ventas aún</div>}
+        {topProds.map((tp,i)=>{const p=productos.find(x=>x.id===tp.pid);if(!p)return null;return(<div key={tp.pid} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:i<topProds.length-1?"1px solid rgba(255,255,255,.05)":"none"}}><div style={{width:26,height:26,background:"rgba(255,255,255,.07)",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:"rgba(255,255,255,.4)"}}>{i+1}</div><span style={{fontSize:20}}>{p.icon}</span><div style={{flex:1}}><div style={{fontWeight:600,fontSize:13}}>{p.name}</div><div style={{fontSize:11,color:"rgba(255,255,255,.3)"}}>{tp.qty} vendidos</div></div><div style={{fontWeight:800,color:accent,fontSize:15}}>{f(tp.rev)}</div></div>);})}
+      </div>
+      <div style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.07)",borderRadius:22,padding:"18px 16px",marginBottom:14}}>
+        <div style={{fontSize:12,color:"rgba(255,255,255,.4)",fontWeight:700,letterSpacing:1,marginBottom:14}}>👤 RENDIMIENTO POR VENDEDOR</div>
+        {sellerStats.map((s,i)=>{const r=ROLES[s.seller]||{label:s.seller,accent:"#888",icon:"👤"};const pct=totalRev>0?Math.round((s.rev/totalRev)*100):0;return(<div key={s.seller} style={{marginBottom:i<sellerStats.length-1?16:0,paddingBottom:i<sellerStats.length-1?16:0,borderBottom:i<sellerStats.length-1?"1px solid rgba(255,255,255,.05)":"none"}}><div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}><div style={{width:38,height:38,borderRadius:12,background:`${r.accent}20`,border:`1px solid ${r.accent}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{r.icon}</div><div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>{r.label}</div><div style={{fontSize:11,color:"rgba(255,255,255,.35)",marginTop:1}}>{s.count} pedidos</div></div><div style={{textAlign:"right"}}><div style={{fontWeight:900,color:r.accent,fontSize:18}}>{f(s.rev)}</div><div style={{fontSize:11,color:"rgba(255,255,255,.3)"}}>{pct}%</div></div></div><div style={{height:6,background:"rgba(255,255,255,.06)",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:r.accent,borderRadius:3}}/></div></div>);})}
+      </div>
+      {productos.some(p=>p.stockTienda<=p.stockMin||p.stockLive<=p.stockMin)&&(
+        <div style={{background:"rgba(255,159,10,.07)",border:"1px solid rgba(255,159,10,.25)",borderRadius:22,padding:"18px 16px"}}>
+          <div style={{fontSize:12,color:"#ff9f0a",fontWeight:700,letterSpacing:1,marginBottom:12}}>⚠ ALERTAS DE STOCK</div>
+          {productos.filter(p=>p.stockTienda<=p.stockMin||p.stockLive<=p.stockMin).map(p=>(
+            <div key={p.id} style={{padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,.04)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontSize:13,fontWeight:600}}>{p.icon} {p.name}</span>
+              <div style={{display:"flex",gap:8}}>
+                {p.stockTienda<=p.stockMin&&<span style={{fontWeight:800,color:p.stockTienda===0?"#ff453a":"#ff9f0a",fontSize:13}}>🏪 {p.stockTienda}u</span>}
+                {p.stockLive<=p.stockMin&&<span style={{fontWeight:800,color:p.stockLive===0?"#ff453a":"#ff9f0a",fontSize:13}}>📱 {p.stockLive}u</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── APP ROOT ── */
+function App(){
+  const [role,setRole]=useState(null);
+  const [page,setPage]=useState("venta");
+  const [productos,setProductos]=useState([]);
+  const [orders,setOrders]=useState([]);
+  const [transfers,setTransfers]=useState([]);
+  const [toasts,setToasts]=useState([]);
+  const [cargando,setCargando]=useState(false);
+
+  const toast=useCallback((type,msg)=>{const id=Date.now();setToasts(t=>[...t,{id,type,msg}]);setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),3500);},[]);
+  const recargarProductos=useCallback(()=>{fetch(`${API_URL}/productos`).then(r=>r.json()).then(data=>setProductos(data.map(normProd))).catch(()=>toast("err","❌ Error actualizando inventario"));},[toast]);
+
+  useEffect(()=>{
+    if(!role) return;
+    setCargando(true);
+    fetch(`${API_URL}/productos`).then(r=>r.json()).then(data=>{setProductos(data.map(normProd));setCargando(false);}).catch(()=>{setCargando(false);toast("err","❌ Error conectando a la BD");});
+  },[role]);
+
+  if(!role) return <Login onLogin={r=>{setRole(r);setPage("venta");}}/>;
+
+  const roleData=ROLES[role];
+  const accent=roleData.accent;
+  const pendingPay=orders.filter(o=>["pago_pendiente","pago_recibido"].includes(o.status)).length;
+  const pendingTrf=transfers.filter(t=>t.status==="pendiente").length;
+  const stockAlerts=productos.filter(p=>p.active&&(p.stockTienda<=p.stockMin||p.stockLive<=p.stockMin)).length;
+  const canSeeTrf=role==="admin"||role==="vendedor";
+
+  const NAV=[
+    {k:"venta",i:"🛒",l:"Vender",b:0},
+    {k:"pedidos",i:"📋",l:"Pedidos",b:pendingPay},
+    {k:"productos",i:"📦",l:"Productos",b:stockAlerts},
+    ...(canSeeTrf?[{k:"traspasos",i:"🔀",l:"Traspasos",b:pendingTrf}]:[]),
+    ...(role==="admin"?[{k:"dashboard",i:"📊",l:"Stats",b:0}]:[]),
+  ];
+
+  const renderPage=()=>{
+    if(cargando) return <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:20}}><div style={{width:56,height:56,border:`3px solid rgba(255,255,255,.08)`,borderTop:`3px solid ${accent}`,borderRadius:"50%",animation:"spin 1s linear infinite"}}/><p style={{color:accent,fontWeight:700,fontSize:14,animation:"pulse 1.5s ease-in-out infinite"}}>Cargando productos desde BD…</p></div>;
+    if(page==="venta")     return <Venta role={role} productos={productos} recargarProductos={recargarProductos} orders={orders} setOrders={setOrders} transfers={transfers} setTransfers={setTransfers} toast={toast}/>;
+    if(page==="pedidos")   return <Pedidos orders={orders} setOrders={setOrders} productos={productos} accent={accent} role={role} toast={toast}/>;
+    if(page==="productos") return <ProductosScreen productos={productos} setProductos={setProductos} role={role} toast={toast} recargarProductos={recargarProductos}/>;
+    if(page==="traspasos") return <Traspasos transfers={transfers} setTransfers={setTransfers} productos={productos} setProductos={setProductos} role={role} toast={toast}/>;
+    if(page==="dashboard") return <Dashboard orders={orders} productos={productos} transfers={transfers}/>;
+    return null;
+  };
+
+  /* NavItem reutilizable */
+  function NavItem({n,vertical=false}){
+    const active=page===n.k;
+    return(
+      <button onClick={()=>setPage(n.k)} className="hap" style={{
+        display:"flex",flexDirection:vertical?"row":"column",
+        alignItems:"center",justifyContent:vertical?"flex-start":"center",
+        gap:vertical?12:3,padding:vertical?"11px 14px":"0",
+        flex:vertical?undefined:1,
+        background:vertical&&active?`${accent}15`:"none",
+        border:vertical?`1px solid ${active?accent+"40":"transparent"}`:"none",
+        borderRadius:vertical?14:0,
+        marginBottom:vertical?2:0,
+        position:"relative",transition:"all .2s"}}>
+        <div style={{position:"relative",flexShrink:0}}>
+          <span style={{fontSize:vertical?19:22,transform:active&&!vertical?"scale(1.15)":"scale(1)",transition:"transform .3s cubic-bezier(.34,1.56,.64,1)",display:"block"}}>{n.i}</span>
+          {n.b>0&&<div style={{position:"absolute",top:-4,right:-6,background:"#ff453a",color:"#fff",borderRadius:10,padding:"0 4px",fontSize:9,fontWeight:900,minWidth:16,textAlign:"center",lineHeight:"16px",animation:"pulse 2s infinite"}}>{n.b}</div>}
+        </div>
+        <span style={{fontSize:vertical?13:10,fontWeight:active?700:400,color:active?accent:"rgba(255,255,255,.35)",transition:"color .2s",textTransform:vertical?"none":"uppercase",letterSpacing:vertical?0:.5,whiteSpace:"nowrap"}}>{n.l}</span>
+        {active&&!vertical&&<div style={{position:"absolute",bottom:0,left:"22%",right:"22%",height:2.5,background:accent,borderRadius:"2px 2px 0 0",boxShadow:`0 0 10px ${accent}80`}}/>}
+      </button>
+    );
+  }
+
+  return(
+    <>
+      <Ambient rk={role}/>
+      <Toasts toasts={toasts} rm={id=>setToasts(t=>t.filter(x=>x.id!==id))}/>
+      <div className="shell">
+
+        {/* SIDEBAR desktop */}
+        <div className="sidebar">
+          <div style={{padding:"20px 16px 16px",borderBottom:"1px solid rgba(255,255,255,.06)"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:36,height:36,borderRadius:12,background:"linear-gradient(145deg,rgba(255,255,255,.1),rgba(255,255,255,.03))",border:"1px solid rgba(255,255,255,.13)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🛒</div>
+              <div><div style={{fontSize:13,fontWeight:800}}>Balespi Import</div><div style={{fontSize:10,color:accent,fontWeight:600}}>{roleData.label}</div></div>
+            </div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",flex:1,padding:"12px 10px",gap:4}}>
+            {NAV.map(n=><NavItem key={n.k} n={n} vertical={true}/>)}
+          </div>
+          <div style={{padding:"12px 10px",borderTop:"1px solid rgba(255,255,255,.06)"}}>
+            <button onClick={()=>setRole(null)} className="hap" style={{width:"100%",background:"rgba(255,69,58,.08)",border:"1px solid rgba(255,69,58,.2)",borderRadius:12,padding:"10px 14px",color:"rgba(255,69,58,.7)",fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:8,justifyContent:"center"}}>← Salir</button>
+          </div>
+        </div>
+
+        {/* MAIN */}
+        <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",position:"relative",zIndex:1}}>
+          {/* Top bar */}
+          <div style={{flexShrink:0,height:60,background:"rgba(0,0,0,.6)",backdropFilter:"blur(32px) saturate(200%)",borderBottom:"1px solid rgba(255,255,255,.06)",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 18px"}}>
+            <div className="main-topbar-logo" style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:32,height:32,borderRadius:10,background:"linear-gradient(145deg,rgba(255,255,255,.1),rgba(255,255,255,.03))",border:"1px solid rgba(255,255,255,.13)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🛒</div>
+              <div><div style={{fontSize:12,fontWeight:800}}>Balespi Import</div><div style={{fontSize:10,color:accent,fontWeight:600}}>{roleData.label}</div></div>
+            </div>
+            <div style={{fontSize:13,fontWeight:700,color:"rgba(255,255,255,.5)"}}>
+              {NAV.find(n=>n.k===page)?.i} {NAV.find(n=>n.k===page)?.l}
+            </div>
+            <button onClick={()=>setRole(null)} className="hap" style={{background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.1)",borderRadius:12,padding:"7px 14px",color:"rgba(255,255,255,.4)",fontSize:12,fontWeight:600}}>Salir</button>
+          </div>
+
+          {/* Content */}
+          <div style={{flex:1,overflow:"hidden",position:"relative"}}>{renderPage()}</div>
+
+          {/* Bottom nav mobile */}
+          <div className="bottom-nav-mobile" style={{flexShrink:0,height:70,background:"rgba(0,0,0,.65)",backdropFilter:"blur(40px) saturate(200%)",borderTop:"1px solid rgba(255,255,255,.06)"}}>
+            {NAV.map(n=><NavItem key={n.k} n={n} vertical={false}/>)}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+const root=ReactDOM.createRoot(document.getElementById("root"));
 root.render(React.createElement(App));
 </script>
 </body>
