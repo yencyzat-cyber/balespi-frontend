@@ -10,7 +10,6 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-    
     html,body{height:100%;font-family:-apple-system,'Inter',sans-serif;background:#f4f5f8;color:#1a1a1c;-webkit-font-smoothing:antialiased;overflow:hidden}
     input,select,button,textarea{font-family:inherit}
     ::-webkit-scrollbar{width:4px}
@@ -38,19 +37,8 @@
       .sidebar{display:flex;flex-direction:column;width:220px;flex-shrink:0;background:rgba(255,255,255,.8);border-right:1px solid rgba(0,0,0,.08)}
       .bottom-nav-mobile{display:none!important}
       .main-topbar-logo{display:none!important}
-      .cart-float{
-        left: 220px;
-        right: 0;
-        bottom: 24px;
-        display: flex;
-        justify-content: center;
-        padding: 0 16px;
-        pointer-events: none;
-      }
-      .cart-float > button {
-        max-width: 500px;
-        pointer-events: auto;
-      }
+      .cart-float{left:220px;right:0;bottom:24px;display:flex;justify-content:center;padding:0 16px;pointer-events:none}
+      .cart-float > button {max-width: 500px;pointer-events: auto;}
       .prod-grid-scroll{padding-bottom:90px!important}
     }
   </style>
@@ -72,7 +60,7 @@ const STATUS_MAP = {
   verificado:{label:"Verificado",color:"#10b981"},
   embalando:{label:"Embalando",color:"#636cf1"},
   enviado:{label:"En camino",color:"#0ea5e9"},
-  entregado:{label:"Entregado",color:"#10b981"},
+  entregado:{label:"Completado",color:"#10b981"},
   cancelado:{label:"Cancelado",color:"#ef4444"},
 };
 const FLOW = ["pago_pendiente","pago_recibido","verificado","embalando","enviado","entregado"];
@@ -170,28 +158,22 @@ function Sheet({open,onClose,title,children}){
     </div>
   );
 }
-
-// 💡 MODIFICACIÓN: Pill inteligente que detecta si es de Tienda
 function Pill({status, channel}){
   let st = STATUS_MAP[status]||{label:status,color:"#888"};
-  // Si el canal es tienda, siempre mostramos Completado visualmente
-  if(channel === "tienda") {
-      st = {label:"Completado", color:"#10b981"};
-  }
+  if(channel === "tienda") st = {label:"Completado", color:"#10b981"};
   return(
     <span style={{display:"inline-flex",alignItems:"center",gap:5,background:`${st.color}18`,color:st.color,border:`1px solid ${st.color}33`,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>
       <span style={{fontSize:7}}>●</span>{st.label}
     </span>
   );
 }
-
-function GInput({label,value,onChange,type="text",placeholder,icon}){
+function GInput({label,value,onChange,type="text",placeholder,icon,list}){
   return(
     <div>
       {label&&<div style={{fontSize:11,fontWeight:600,color:"rgba(0,0,0,.5)",letterSpacing:1.2,textTransform:"uppercase",marginBottom:7}}>{label}</div>}
       <div style={{position:"relative"}}>
         {icon&&<span style={{position:"absolute",left:14,top:"50%",transform:"translateY(-50%)",fontSize:15,pointerEvents:"none"}}>{icon}</span>}
-        <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
+        <input type={type} list={list} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
           style={{width:"100%",background:"#fff",border:"1px solid rgba(0,0,0,.1)",borderRadius:14,padding:icon?"13px 14px 13px 42px":"13px 16px",color:"#111",fontSize:14,outline:"none"}}
           onFocus={e=>{e.target.style.borderColor="rgba(0,0,0,.25)";e.target.style.boxShadow="0 4px 12px rgba(0,0,0,.03)"}}
           onBlur={e=>{e.target.style.borderColor="rgba(0,0,0,.1)";e.target.style.boxShadow="none"}}/>
@@ -288,7 +270,7 @@ function Login({onLogin}){
 }
 
 /* ── VENTA ── */
-function Venta({role,productos,recargarProductos,orders,setOrders,transfers,setTransfers,toast}){
+function Venta({role,productos,clientes,recargarGlobal,orders,setOrders,transfers,setTransfers,toast}){
   const channel=role==="tienda"?"tienda":"live";
   const stockKey=channel==="tienda"?"stockTienda":"stockLive";
   const otherKey=channel==="tienda"?"stockLive":"stockTienda";
@@ -327,26 +309,19 @@ function Venta({role,productos,recargarProductos,orders,setOrders,transfers,setT
     setProcesando(true);
     const oid=channel==="tienda"?`TDA-${uid()}`:`LIVE-${uid()}`;
     const alerts=[];
-    const newTransf=[...transfers];
     cart.forEach(c=>{
       const p=productos.find(x=>x.id===c.pid); if(!p) return;
       const needed=calcUnits(p,c.type,c.qty);
       const avail=p[stockKey];
       if(avail<needed){
-        const falta=needed-avail;
-        const tid=`TRF-${uid()}`;
-        alerts.push({pid:c.pid,name:p.name,falta,otherName,tid});
-        newTransf.push({id:tid,pid:c.pid,productName:p.name,productIcon:p.icon,productPhoto:p.photo,unidades:falta,de:otherName.toLowerCase(),deKey:otherKey,a:channel,orderId:oid,status:"pendiente",createdAt:new Date()});
+        alerts.push({pid:c.pid,name:p.name,falta:needed-avail,tid:`TRF-${uid()}`});
       }
     });
     const venta={
-      order_id:oid,
-      seller:role==="tienda"?"Cajero Tienda":client.name||"Vendedor Live",
-      client:isLive?client.name:"Cliente Mostrador",
-      phone:isLive?client.phone:"",
-      channel,subtotal,discount_pct:discountPct,total,
-      notes:notes||"Venta desde Balespi PRO",
-      internal_note: internalNote,
+      order_id:oid, seller:role==="tienda"?"Cajero Tienda":client.name||"Vendedor Live",
+      client:isLive?client.name:"Cliente Mostrador", phone:isLive?client.phone:"",
+      channel, subtotal, discount_pct:discountPct, total,
+      notes:notes||"Venta desde Balespi PRO", internal_note: internalNote,
       items:cart.map(c=>{
         const p=productos.find(x=>x.id===c.pid);
         return{product_id:c.pid,sale_type:c.type,qty:c.qty,price_applied:p?getPrice(p):0};
@@ -357,20 +332,14 @@ function Venta({role,productos,recargarProductos,orders,setOrders,transfers,setT
     .then(data=>{
       setProcesando(false);
       if(data.estado==="exito"){
-        const order={id:oid,seller:role,client:isLive?client.name:"— Tienda —",phone:isLive?client.phone:"",channel,notes,internalNote,discount:discountPct,
-          items:cart.map(c=>{const p=productos.find(x=>x.id===c.pid);return{pid:c.pid,qty:c.qty,type:c.type,units:calcUnits(p,c.type,c.qty),price:p?getPrice(p):0};}),
-          subtotal,total,status:isLive?"pago_pendiente":"verificado",createdAt:new Date(),stockAlert:alerts.length>0?alerts:null};
-        setOrders(prev=>[order,...prev]);
-        setTransfers(newTransf);
-        setDone({...order,total});
+        setDone({id:oid, total, subtotal, discount:discountPct, client:venta.client, phone:venta.phone, stockAlert:alerts.length>0?alerts:null});
         setCart([]);setCartOpen(false);setClient({name:"",phone:""});setNotes("");setInternalNote("");setDiscountPct(0);
-        recargarProductos();
-        if(alerts.length>0) toast("warn",`🔀 ${alerts.length} traspaso(s) pendiente(s)`);
+        recargarGlobal();
+        if(alerts.length>0) toast("warn",`🔀 ${alerts.length} traspaso(s) pendiente(s) generados`);
       } else {
         toast("err",`⛔ ${data.detalle||"Error en BD"}`);
       }
-    })
-    .catch(err=>{setProcesando(false);toast("err",`❌ Error de red`);});
+    }).catch(err=>{setProcesando(false);toast("err",`❌ Error de red`);});
   };
 
   if(done) return(
@@ -384,8 +353,8 @@ function Venta({role,productos,recargarProductos,orders,setOrders,transfers,setT
         <div style={{fontSize:11,color:"rgba(0,0,0,.4)",marginTop:4,fontFamily:"monospace"}}>{done.id}</div>
         {done.stockAlert&&done.stockAlert.map((a,i)=>(
           <div key={i} style={{marginTop:12,background:"rgba(245,158,11,.1)",border:"1px solid rgba(245,158,11,.3)",borderRadius:18,padding:"14px 16px",textAlign:"left"}}>
-            <div style={{fontWeight:800,fontSize:13,color:"#d97706",marginBottom:6}}>🔀 Traspaso pendiente generado</div>
-            <div style={{fontSize:12,color:"rgba(0,0,0,.7)",lineHeight:1.8}}><b style={{color:"#111"}}>{a.name}</b>: faltaron <b style={{color:"#d97706"}}>{a.falta}u</b> · <span style={{fontFamily:"monospace",fontSize:10,color:"rgba(0,0,0,.4)"}}>{a.tid}</span></div>
+            <div style={{fontWeight:800,fontSize:13,color:"#d97706",marginBottom:6}}>🔀 Traspaso pendiente</div>
+            <div style={{fontSize:12,color:"rgba(0,0,0,.7)",lineHeight:1.8}}><b style={{color:"#111"}}>{a.name}</b>: faltan <b style={{color:"#d97706"}}>{a.falta}u</b></div>
           </div>
         ))}
       </div>
@@ -473,10 +442,24 @@ function Venta({role,productos,recargarProductos,orders,setOrders,transfers,setT
       )}
       <Sheet open={clientOpen} onClose={()=>setClientOpen(false)} title="Datos del cliente">
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
+          {/* LÓGICA PARA AUTO-COMPLETAR CLIENTE DESDE BD */}
+          <GInput label="WhatsApp (Busca al cliente)" value={client.phone} onChange={v=>{
+             setClient({...client, phone:v});
+             const found = clientes.find(c => c.phone === v);
+             if(found){
+               setClient(prev => ({...prev, name: found.name}));
+               setNotes(found.address || "");
+             }
+          }} placeholder="987 654 321" type="tel" icon="📱" list="lista-clientes"/>
+          
+          <datalist id="lista-clientes">
+            {clientes.map(c => <option key={c.phone} value={c.phone}>{c.name}</option>)}
+          </datalist>
+
           <GInput label="Nombre completo" value={client.name} onChange={v=>setClient({...client,name:v})} placeholder="Ej: María López" icon="👤"/>
-          <GInput label="WhatsApp" value={client.phone} onChange={v=>setClient({...client,phone:v})} placeholder="987 654 321" type="tel" icon="📱"/>
-          <GInput label="Notas" value={notes} onChange={setNotes} placeholder="Dirección, referencia..." icon="📝"/>
-          <button onClick={()=>{if(client.name&&client.phone){setClientOpen(false);if(cart.length>0)setCartOpen(true);}}} className="hap" style={{background:client.name&&client.phone?ROLES[role].grad:"rgba(0,0,0,.05)",color:client.name&&client.phone?"#fff":"rgba(0,0,0,.3)",border:"none",borderRadius:18,padding:"16px",fontSize:15,fontWeight:700,cursor:client.name&&client.phone?"pointer":"not-allowed",boxShadow:client.name&&client.phone?`0 8px 24px ${accent}30`:"none"}}>Listo →</button>
+          <GInput label="Dirección / Referencia" value={notes} onChange={setNotes} placeholder="Calle, distrito..." icon="📍"/>
+          
+          <button onClick={()=>{if(client.name&&client.phone){setClientOpen(false);if(cart.length>0)setCartOpen(true);}}} className="hap" style={{background:client.name&&client.phone?ROLES[role].grad:"rgba(0,0,0,.05)",color:client.name&&client.phone?"#fff":"rgba(0,0,0,.3)",border:"none",borderRadius:18,padding:"16px",fontSize:15,fontWeight:700,cursor:client.name&&client.phone?"pointer":"not-allowed",boxShadow:client.name&&client.phone?`0 8px 24px ${accent}30`:"none"}}>Continuar →</button>
         </div>
       </Sheet>
       <Sheet open={cartOpen} onClose={()=>setCartOpen(false)} title="Tu pedido">
@@ -544,8 +527,8 @@ function Venta({role,productos,recargarProductos,orders,setOrders,transfers,setT
   );
 }
 
-/* ── PEDIDOS (AQUÍ ESTÁ EL CAMBIO DE LÓGICA TIENDA/LIVE) ── */
-function Pedidos({orders,setOrders,productos,accent,role,toast}){
+/* ── PEDIDOS ── */
+function Pedidos({orders,setOrders,productos,accent,role,toast,recargarGlobal}){
   const [filter,setFilter]=useState("all");
   const [search,setSearch]=useState("");
   const [sel,setSel]=useState(null);
@@ -557,7 +540,15 @@ function Pedidos({orders,setOrders,productos,accent,role,toast}){
   });
   const advance=o=>{
     const idx=FLOW.indexOf(o.status);
-    if(idx<FLOW.length-1){const ns=FLOW[idx+1];setOrders(prev=>prev.map(x=>x.id===o.id?{...x,status:ns}:x));setSel(s=>s?{...s,status:ns}:s);toast("ok",`${o.id} → ${STATUS_MAP[ns].label}`);}
+    if(idx<FLOW.length-1){
+      const ns=FLOW[idx+1];
+      fetch(`${API_URL}/actualizar_pedido`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: o.id, status: ns})})
+      .then(()=>{
+         setOrders(prev=>prev.map(x=>x.id===o.id?{...x,status:ns}:x));
+         setSel(s=>s?{...s,status:ns}:s);
+         toast("ok",`${o.id} → ${STATUS_MAP[ns].label}`);
+      });
+    }
   };
   return(
     <div style={{height:"100%",overflowY:"auto",padding:16}}>
@@ -579,7 +570,6 @@ function Pedidos({orders,setOrders,productos,accent,role,toast}){
                   {o.internalNote&&<span style={{fontSize:10,color:"#4f46e5",background:"rgba(99,108,241,.15)",padding:"2px 7px",borderRadius:6}}>nota</span>}
                 </div>
                 <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                  {/* Se envía el canal al Pill para saber cómo pintarlo */}
                   <Pill status={o.status} channel={o.channel}/>
                   {o.discount>0&&<span style={{background:"rgba(244,63,94,.1)",color:"#e11d48",border:"1px solid rgba(244,63,94,.2)",borderRadius:10,padding:"2px 8px",fontSize:10,fontWeight:700}}>-{o.discount}%</span>}
                   <span style={{fontSize:11,color:"rgba(0,0,0,.4)",fontFamily:"monospace"}}>{o.id} · {ago(o.createdAt)}</span>
@@ -602,14 +592,16 @@ function Pedidos({orders,setOrders,productos,accent,role,toast}){
             <div style={{background:"rgba(99,108,241,.05)",border:"1px solid rgba(99,108,241,.15)",borderRadius:18,padding:16}}>
               <div style={{fontSize:11,fontWeight:700,color:"#4f46e5",letterSpacing:1,marginBottom:10}}>🔒 NOTA INTERNA</div>
               <GTextarea value={editNote} onChange={setEditNote} placeholder="Solo el equipo puede ver esto..." rows={2}/>
-              <button onClick={()=>{setOrders(prev=>prev.map(x=>x.id===sel.id?{...x,internalNote:editNote}:x));setSel(s=>({...s,internalNote:editNote}));toast("ok","🔒 Nota guardada");}} className="hap" style={{marginTop:10,background:"rgba(99,108,241,.1)",border:"1px solid rgba(99,108,241,.2)",borderRadius:12,padding:"9px 18px",color:"#4f46e5",fontSize:13,fontWeight:700}}>Guardar nota</button>
+              <button onClick={()=>{
+                 fetch(`${API_URL}/actualizar_pedido`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: sel.id, internal_note: editNote})})
+                 .then(()=>{
+                    setOrders(prev=>prev.map(x=>x.id===sel.id?{...x,internalNote:editNote}:x));
+                    setSel(s=>({...s,internalNote:editNote}));toast("ok","🔒 Nota guardada");
+                 });
+              }} className="hap" style={{marginTop:10,background:"rgba(99,108,241,.1)",border:"1px solid rgba(99,108,241,.2)",borderRadius:12,padding:"9px 18px",color:"#4f46e5",fontSize:13,fontWeight:700}}>Guardar nota</button>
             </div>
-            
-            {/* LÓGICA DE BOTÓN AVANZAR: Oculto si es tienda o si ya está completado */}
             {!["cancelado","entregado"].includes(sel.status) && sel.channel !== "tienda" &&(
-              <button onClick={()=>advance(sel)} className="hap" style={{background:ROLES[role].grad,color:"#fff",border:"none",borderRadius:18,padding:"15px",fontSize:15,fontWeight:800,boxShadow:`0 8px 24px ${accent}40`}}>
-                {sel.status==="pago_pendiente"?"💸 Marcar Pago Recibido":sel.status==="pago_recibido"?"✅ Verificar Pago":`Avanzar → ${STATUS_MAP[FLOW[FLOW.indexOf(sel.status)+1]]?.label||""}`}
-              </button>
+              <button onClick={()=>advance(sel)} className="hap" style={{background:ROLES[role].grad,color:"#fff",border:"none",borderRadius:18,padding:"15px",fontSize:15,fontWeight:800,boxShadow:`0 8px 24px ${accent}40`}}>{sel.status==="pago_pendiente"?"💸 Marcar Pago Recibido":sel.status==="pago_recibido"?"✅ Verificar Pago":`Avanzar → ${STATUS_MAP[FLOW[FLOW.indexOf(sel.status)+1]]?.label||""}`}</button>
             )}
           </div>
         )}
@@ -619,19 +611,29 @@ function Pedidos({orders,setOrders,productos,accent,role,toast}){
 }
 
 /* ── TRASPASOS ── */
-function Traspasos({transfers,setTransfers,productos,setProductos,role,toast}){
+function Traspasos({transfers,setTransfers,productos,setProductos,role,toast,recargarGlobal}){
   const accent=ROLES[role].accent;
   const pending=transfers.filter(t=>t.status==="pendiente");
   const history=transfers.filter(t=>t.status!=="pendiente");
+  
   const confirmTrf=t=>{
     const p=productos.find(x=>x.id===t.pid);if(!p)return;
-    const avail=p[t.deKey];
-    if(avail<t.unidades){toast("err",`❌ Solo ${avail}u en ${t.de}`);return;}
-    setProductos(prev=>prev.map(x=>x.id!==t.pid?x:{...x,[t.deKey]:x[t.deKey]-t.unidades}));
-    setTransfers(prev=>prev.map(x=>x.id===t.id?{...x,status:"confirmado",confirmedAt:new Date(),confirmedBy:role}:x));
-    toast("ok",`✅ Traspaso confirmado · ${t.unidades}u`);
+    if(p[t.de_key]<t.unidades){toast("err",`❌ Solo ${p[t.de_key]}u en origen`);return;}
+    
+    fetch(`${API_URL}/actualizar_traspaso`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: t.id, status: 'confirmado', role: role})})
+    .then(r=>r.json()).then(data=>{
+       if(data.estado==="exito"){
+         toast("ok",`✅ Traspaso confirmado · ${t.unidades}u`);
+         recargarGlobal(); // Recarga productos y traspasos
+       }
+    });
   };
-  const cancelTrf=t=>{setTransfers(prev=>prev.map(x=>x.id===t.id?{...x,status:"cancelado"}:x));toast("warn",`❌ Traspaso cancelado`);};
+  
+  const cancelTrf=t=>{
+    fetch(`${API_URL}/actualizar_traspaso`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: t.id, status: 'cancelado', role: role})})
+    .then(()=>{ toast("warn",`❌ Traspaso cancelado`); recargarGlobal(); });
+  };
+  
   return(
     <div style={{height:"100%",overflowY:"auto",padding:16}}>
       <div style={{fontWeight:800,fontSize:18,marginBottom:4,color:"#111"}}>🔀 Traspasos de Stock</div>
@@ -642,21 +644,21 @@ function Traspasos({transfers,setTransfers,productos,setProductos,role,toast}){
           <div style={{fontSize:11,color:"#d97706",fontWeight:700,letterSpacing:1.5,marginBottom:6}}>⚠ PENDIENTES</div>
           {pending.map(t=>{
             const p=productos.find(x=>x.id===t.pid);
-            const stockOrigen=p?p[t.deKey]:0;
+            const stockOrigen=p?p[t.de_key]:0;
             const hayStock=stockOrigen>=t.unidades;
             return(
               <div key={t.id} style={{background:"rgba(245,158,11,.05)",border:"1px solid rgba(245,158,11,.2)",borderRadius:22,padding:18}}>
                 <div style={{display:"flex",gap:12,alignItems:"flex-start",marginBottom:14}}>
                   <div style={{width:52,height:52,borderRadius:16,background:"#fff",border:"1px solid rgba(0,0,0,.05)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>
-                    {t.productPhoto?<img src={t.productPhoto} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:26}}>{t.productIcon}</span>}
+                    {t.product_photo?<img src={t.product_photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:26}}>{t.product_icon}</span>}
                   </div>
-                  <div style={{flex:1}}><div style={{fontWeight:700,fontSize:15,marginBottom:3,color:"#111"}}>{t.productName}</div><div style={{fontSize:11,color:"rgba(0,0,0,.5)"}}>Pedido: <span style={{fontFamily:"monospace",color:"rgba(0,0,0,.7)"}}>{t.orderId}</span></div></div>
+                  <div style={{flex:1}}><div style={{fontWeight:700,fontSize:15,marginBottom:3,color:"#111"}}>{t.product_name}</div><div style={{fontSize:11,color:"rgba(0,0,0,.5)"}}>Pedido: <span style={{fontFamily:"monospace",color:"rgba(0,0,0,.7)"}}>{t.order_id}</span></div></div>
                   <div style={{textAlign:"right",flexShrink:0}}><div style={{fontWeight:900,fontSize:28,color:"#d97706",letterSpacing:-1}}>{t.unidades}</div><div style={{fontSize:10,color:"rgba(0,0,0,.4)"}}>unidades</div></div>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:10,background:"#fff",border:"1px solid rgba(0,0,0,.08)",borderRadius:14,padding:"10px 16px",marginBottom:12}}>
-                  <span style={{fontWeight:700,fontSize:13,color:"#111"}}>{t.de==="tienda"?"🏪 Tienda":"📱 Live"}</span>
+                  <span style={{fontWeight:700,fontSize:13,color:"#111"}}>{t.de_channel==="tienda"?"🏪 Tienda":"📱 Live"}</span>
                   <div style={{flex:1,height:2,background:"rgba(245,158,11,.3)",position:"relative"}}><div style={{position:"absolute",right:-6,top:-7,color:"#f59e0b",fontSize:14}}>▶</div></div>
-                  <span style={{fontWeight:700,fontSize:13,color:"#111"}}>{t.a==="tienda"?"🏪 Tienda":"📱 Live"}</span>
+                  <span style={{fontWeight:700,fontSize:13,color:"#111"}}>{t.a_channel==="tienda"?"🏪 Tienda":"📱 Live"}</span>
                 </div>
                 <div style={{fontSize:12,marginBottom:14,fontWeight:hayStock?400:700,color:hayStock?"rgba(0,0,0,.6)":"#dc2626"}}>{hayStock?`✓ Disponibles: ${stockOrigen}u`:`⚠ Solo ${stockOrigen}u disponibles`}</div>
                 <div style={{display:"flex",gap:10}}>
@@ -673,8 +675,8 @@ function Traspasos({transfers,setTransfers,productos,setProductos,role,toast}){
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
           {history.map(t=>(
             <div key={t.id} style={{background:"#fff",border:"1px solid rgba(0,0,0,.08)",borderRadius:18,padding:"14px 16px",display:"flex",gap:12,alignItems:"center",boxShadow:"0 2px 8px rgba(0,0,0,.02)"}}>
-              <span style={{fontSize:22,opacity:.8}}>{t.productIcon||"📦"}</span>
-              <div style={{flex:1}}><div style={{fontWeight:600,fontSize:13,color:"#111"}}>{t.productName}</div><div style={{fontSize:11,color:"rgba(0,0,0,.5)",marginTop:2}}>{t.de==="tienda"?"🏪":"📱"} → {t.a==="tienda"?"🏪":"📱"} · {t.unidades}u · {ago(t.createdAt)}</div></div>
+              <span style={{fontSize:22,opacity:.8}}>{t.product_icon||"📦"}</span>
+              <div style={{flex:1}}><div style={{fontWeight:600,fontSize:13,color:"#111"}}>{t.product_name}</div><div style={{fontSize:11,color:"rgba(0,0,0,.5)",marginTop:2}}>{t.de_channel==="tienda"?"🏪":"📱"} → {t.a_channel==="tienda"?"🏪":"📱"} · {t.unidades}u · {ago(t.created_at)}</div></div>
               <span style={{background:t.status==="confirmado"?"rgba(16,185,129,.1)":"rgba(239,68,68,.1)",color:t.status==="confirmado"?"#059669":"#dc2626",border:`1px solid ${t.status==="confirmado"?"rgba(16,185,129,.2)":"rgba(239,68,68,.2)"}`,borderRadius:20,padding:"4px 12px",fontSize:11,fontWeight:700}}>{t.status==="confirmado"?"✓ Ok":"✕ Cancel."}</span>
             </div>
           ))}
@@ -684,7 +686,7 @@ function Traspasos({transfers,setTransfers,productos,setProductos,role,toast}){
   );
 }
 
-/* ── FORM PRODUCTO (CÓDIGO CON SUBIDA DE FOTO Y ROLE) ── */
+/* ── PRODUCTOS ── */
 const EMPTY_PROD = () => ({
   id: null, name:"", sku:"", cat:"", icon:"📦", photo:null,
   prices:{tienda:0,live:0,docena_unit:0,cajon_unit:0},
@@ -697,11 +699,7 @@ const CATS_DEFAULT = ["Frascos","Tuppers","Utensilios","Accesorios","Bolsas","Ot
 
 function FormProducto({prod,onSave,onClose,accent,allCats,role}){
   const isEdit=!!prod.id;
-  const [f_,setF_]=useState({
-    ...EMPTY_PROD(), 
-    ...prod, 
-    sku: prod.sku || String(Date.now()).slice(-6)
-  });
+  const [f_,setF_]=useState({...EMPTY_PROD(), ...prod, sku: prod.sku || String(Date.now()).slice(-6)});
   const [promoPct,setPromoPct]=useState(prod.promo?.pct||0);
   const [showIconPicker,setShowIconPicker]=useState(false);
 
@@ -709,84 +707,63 @@ function FormProducto({prod,onSave,onClose,accent,allCats,role}){
   const setPrice=(k,v)=>setF_(p=>({...p,prices:{...p.prices,[k]:Number(v)||0}}));
   const allCatsOpts= useMemo(() => [...new Set([...CATS_DEFAULT,...(allCats || [])])], [allCats]);
 
-  // FUNCIÓN PARA LEER LA IMAGEN COMO BASE64
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onloadend = () => {
-        set("photo", reader.result); // Esto guarda la foto real en formato texto seguro
-    };
+    reader.onloadend = () => set("photo", reader.result);
     reader.readAsDataURL(file);
   };
 
   const handleSave=()=>{
     if(!f_.name.trim()){alert("El nombre es obligatorio");return;}
-    const saved={
-      ...f_,
-      promo: promoPct>0?{pct:promoPct,label:`${promoPct}% OFF`}:null,
-    };
+    const saved={...f_, promo: promoPct>0?{pct:promoPct,label:`${promoPct}% OFF`}:null};
     onSave(saved);
   };
 
-  const SectionLabel=({t,c="#636cf1"})=>(
-    <div style={{fontSize:11,fontWeight:700,color:c,letterSpacing:1.5,textTransform:"uppercase",marginBottom:10,marginTop:4}}>{t}</div>
-  );
+  const SectionLabel=({t,c="#636cf1"})=>(<div style={{fontSize:11,fontWeight:700,color:c,letterSpacing:1.5,textTransform:"uppercase",marginBottom:10,marginTop:4}}>{t}</div>);
 
   return(
     <div style={{display:"flex",flexDirection:"column",gap:16}}>
-
-      {/* FOTO + ICONO CON BOTÓN DE SUBIDA REAL */}
       <div style={{display:"flex",gap:14,alignItems:"center"}}>
         <div style={{position:"relative",flexShrink:0}}>
-          <div onClick={()=>setShowIconPicker(v=>!v)} className="hap" style={{width:72,height:72,borderRadius:20,
-            background:f_.photo?"none":"#f8f9fa",
-            border:`2px dashed ${showIconPicker?accent:"rgba(0,0,0,.15)"}`,
-            display:"flex",alignItems:"center",justifyContent:"center",
-            fontSize:36,overflow:"hidden",cursor:"pointer",transition:"border-color .2s"}}>
+          <div onClick={()=>setShowIconPicker(v=>!v)} className="hap" style={{width:72,height:72,borderRadius:20,background:f_.photo?"none":"#f8f9fa",border:`2px dashed ${showIconPicker?accent:"rgba(0,0,0,.15)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:36,overflow:"hidden",cursor:"pointer",transition:"border-color .2s"}}>
             {f_.photo?<img src={f_.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:f_.icon}
           </div>
           {f_.photo&&<button onClick={()=>set("photo",null)} style={{position:"absolute",top:-6,right:-6,background:"#ef4444",border:"none",borderRadius:50,width:20,height:20,color:"#fff",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>×</button>}
         </div>
         <div style={{flex:1}}>
           <div style={{fontSize:12,color:"rgba(0,0,0,.5)",marginBottom:8}}>Sube una imagen o cambia el emoji</div>
-          
           <label className="hap" style={{display:"inline-flex",alignItems:"center",gap:8,background:"#fff",border:"1px solid rgba(0,0,0,.1)",borderRadius:12,padding:"9px 14px",cursor:"pointer",fontSize:13,color:"rgba(0,0,0,.7)",fontWeight:600}}>
             📷 Subir Foto
             <input type="file" accept="image/*" onChange={handleImageUpload} style={{display:"none"}}/>
           </label>
-          
         </div>
       </div>
 
-      {/* ICON PICKER */}
       {showIconPicker&&(
         <div style={{background:"#f8f9fa",border:"1px solid rgba(0,0,0,.08)",borderRadius:18,padding:14}}>
           <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-            {ICONOS.map(ic=>(
-              <button key={ic} onClick={()=>{set("icon",ic);setShowIconPicker(false);}} className="hap" style={{background:f_.icon===ic?`${accent}20`:"#fff",border:`1px solid ${f_.icon===ic?accent+"50":"rgba(0,0,0,.08)"}`,borderRadius:12,width:44,height:44,fontSize:22,cursor:"pointer"}}>{ic}</button>
-            ))}
+            {ICONOS.map(ic=>(<button key={ic} onClick={()=>{set("icon",ic);setShowIconPicker(false);}} className="hap" style={{background:f_.icon===ic?`${accent}20`:"#fff",border:`1px solid ${f_.icon===ic?accent+"50":"rgba(0,0,0,.08)"}`,borderRadius:12,width:44,height:44,fontSize:22,cursor:"pointer"}}>{ic}</button>))}
           </div>
         </div>
       )}
 
-      {/* INFO BÁSICA */}
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
         <SectionLabel t="📋 Información básica" c="#0ea5e9"/>
         <GInput label="Nombre del producto *" value={f_.name} onChange={v=>set("name",v)} placeholder="Ej: Frasco Hermético 1L" icon="📝"/>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
           <GInput label="SKU / Código" value={f_.sku} onChange={v=>set("sku",v)} placeholder="FRH-001" icon="🔖"/>
-          <div>
-            <div style={{fontSize:11,fontWeight:600,color:"rgba(0,0,0,.5)",letterSpacing:1.2,textTransform:"uppercase",marginBottom:7}}>Categoría</div>
-            <select value={f_.cat} onChange={e=>set("cat",e.target.value)} style={{width:"100%",background:"#fff",border:"1px solid rgba(0,0,0,.1)",borderRadius:14,padding:"13px 16px",color:f_.cat?"#111":"rgba(0,0,0,.4)",fontSize:14,outline:"none",appearance:"none"}}>
-              <option value="">— elegir —</option>
-              {allCatsOpts.map(c=><option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
+          
+          {/* LÓGICA DE CATEGORÍAS LIBRES O LISTA */}
+          <GInput label="Categoría" list="cat-opts" value={f_.cat} onChange={v=>set("cat",v)} placeholder="Escribe o elige..." />
+          <datalist id="cat-opts">
+            {allCatsOpts.map(c=><option key={c} value={c}/>)}
+          </datalist>
+
         </div>
       </div>
 
-      {/* PRECIOS */}
       <div style={{background:"#f8f9fa",border:"1px solid rgba(0,0,0,.05)",borderRadius:18,padding:16}}>
         <SectionLabel t="💰 Precios" c="#f59e0b"/>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
@@ -801,15 +778,8 @@ function FormProducto({prod,onSave,onClose,accent,allCats,role}){
           <GInput label="Unidades por docena" value={f_.perDozen||""} onChange={v=>set("perDozen",Number(v)||12)} type="number" placeholder="12"/>
           <GInput label="Unidades por cajón" value={f_.perBox||""} onChange={v=>set("perBox",Number(v)||20)} type="number" placeholder="20"/>
         </div>
-        {(f_.prices.docena_unit>0||f_.prices.cajon_unit>0)&&(
-          <div style={{display:"flex",gap:8,marginTop:10}}>
-            {f_.prices.docena_unit>0&&<div style={{flex:1,background:"rgba(245,158,11,.1)",border:"1px solid rgba(245,158,11,.2)",borderRadius:10,padding:"8px 10px",textAlign:"center"}}><div style={{fontSize:9,color:"#d97706",fontWeight:700,marginBottom:2}}>DOCENA TOTAL</div><div style={{fontWeight:900,color:"#d97706",fontSize:15}}>S/ {(f_.prices.docena_unit*(f_.perDozen||12)).toFixed(2)}</div></div>}
-            {f_.prices.cajon_unit>0&&<div style={{flex:1,background:"rgba(14,165,233,.1)",border:"1px solid rgba(14,165,233,.2)",borderRadius:10,padding:"8px 10px",textAlign:"center"}}><div style={{fontSize:9,color:"#0284c7",fontWeight:700,marginBottom:2}}>CAJÓN TOTAL</div><div style={{fontWeight:900,color:"#0284c7",fontSize:15}}>S/ {(f_.prices.cajon_unit*(f_.perBox||20)).toFixed(2)}</div></div>}
-          </div>
-        )}
       </div>
 
-      {/* STOCK INICIAL */}
       <div style={{background:"#f8f9fa",border:"1px solid rgba(0,0,0,.05)",borderRadius:18,padding:16}}>
         <SectionLabel t="📦 Stock inicial por canal" c="#10b981"/>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
@@ -817,10 +787,8 @@ function FormProducto({prod,onSave,onClose,accent,allCats,role}){
           <GInput label="📱 Stock Live" value={f_.stockLive||""} onChange={v=>set("stockLive",Number(v)||0)} type="number" placeholder="0"/>
         </div>
         <GInput label="⚠ Stock mínimo (alerta)" value={f_.stockMin||""} onChange={v=>set("stockMin",Number(v)||5)} type="number" placeholder="5"/>
-        <div style={{fontSize:11,color:"rgba(0,0,0,.5)",marginTop:8}}>Se mostrará alerta cuando cualquier canal baje de este mínimo</div>
       </div>
 
-      {/* PROMOCIÓN */}
       <div style={{background:"rgba(244,63,94,.05)",border:"1px solid rgba(244,63,94,.15)",borderRadius:18,padding:16}}>
         <SectionLabel t="🔥 Promoción (opcional)" c="#e11d48"/>
         <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}>
@@ -830,15 +798,8 @@ function FormProducto({prod,onSave,onClose,accent,allCats,role}){
             </button>
           ))}
         </div>
-        {promoPct>0&&f_.prices.tienda>0&&(
-          <div style={{background:"#fff",border:"1px solid rgba(244,63,94,.2)",borderRadius:12,padding:"10px 14px",fontSize:13,color:"#111"}}>
-            🏪 {f(f_.prices.tienda)} → <b style={{color:"#e11d48"}}>{f(f_.prices.tienda*(1-promoPct/100))}</b>
-            {f_.prices.live>0&&<> · 📱 {f(f_.prices.live)} → <b style={{color:"#e11d48"}}>{f(f_.prices.live*(1-promoPct/100))}</b></>}
-          </div>
-        )}
       </div>
 
-      {/* ACTIVO */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:"#fff",border:"1px solid rgba(0,0,0,.08)",borderRadius:16,padding:"14px 18px",boxShadow:"0 2px 8px rgba(0,0,0,.02)"}}>
         <div><div style={{fontWeight:600,fontSize:14,color:"#111"}}>Producto activo</div><div style={{fontSize:12,color:"rgba(0,0,0,.5)",marginTop:2}}>Visible en la pantalla de venta</div></div>
         <button onClick={()=>set("active",!f_.active)} className="hap" style={{width:52,height:30,borderRadius:15,background:f_.active?accent:"rgba(0,0,0,.1)",border:"none",position:"relative",transition:"background .3s",cursor:"pointer"}}>
@@ -846,7 +807,6 @@ function FormProducto({prod,onSave,onClose,accent,allCats,role}){
         </button>
       </div>
 
-      {/* GUARDAR */}
       <button onClick={handleSave} className="hap" style={{background:ROLES[role].grad,color:"#fff",border:"none",borderRadius:20,padding:"17px",fontSize:16,fontWeight:800,boxShadow:`0 10px 32px ${accent}40`,marginTop:4}}>
         {isEdit?"💾 Guardar cambios":"✨ Crear producto"}
       </button>
@@ -854,7 +814,7 @@ function FormProducto({prod,onSave,onClose,accent,allCats,role}){
   );
 }
 
-function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
+function ProductosScreen({productos,setProductos,role,toast,recargarGlobal}){
   const accent=ROLES[role].accent;
   const allCats= useMemo(() => productos ? [...new Set(productos.map(p=>p.cat).filter(Boolean))] : [], [productos]);
   const [search,setSearch]=useState("");
@@ -872,42 +832,23 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
 
   const adjustStock=(p,d)=>{
     const n=Math.max(0,Number(d));if(n<=0){toast("err","Ingresá un número mayor a 0");return;}
-    
     const newTienda = stockMode === "tienda" || stockMode === "ambos" ? (p.stockTienda || 0) + n : p.stockTienda || 0;
     const newLive = stockMode === "live" || stockMode === "ambos" ? (p.stockLive || 0) + n : p.stockLive || 0;
 
-    fetch(`${API_URL}/actualizar_stock`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: p.id, stock_tienda: newTienda, stock_live: newLive })
-    })
+    fetch(`${API_URL}/actualizar_stock`, {method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: p.id, stock_tienda: newTienda, stock_live: newLive })})
     .then(res => res.json())
     .then(data => {
-      if(data.estado === "exito"){
-        toast("ok", `📦 Stock actualizado`);
-        recargarProductos();
-        setStockP(null); setDelta(""); setStockMode("tienda");
-      } else {
-        toast("err", `⛔ Error en BD: ${data.detalle}`);
-      }
+      if(data.estado === "exito"){ toast("ok", `📦 Stock actualizado`); recargarGlobal(); setStockP(null); setDelta(""); setStockMode("tienda"); } 
+      else { toast("err", `⛔ Error en BD`); }
     });
   };
 
   const saveProduct=prod=>{
-    fetch(`${API_URL}/crear_producto`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(prod)
-    })
+    fetch(`${API_URL}/crear_producto`, {method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(prod)})
     .then(res => res.json())
     .then(data => {
-      if(data.estado === "exito"){
-        toast("ok", `✅ Producto guardado`);
-        recargarProductos();
-        setEditP(null);
-      } else {
-        toast("err", `⛔ Error en BD: ${data.detalle}`);
-      }
+      if(data.estado === "exito"){ toast("ok", `✅ Producto guardado`); recargarGlobal(); setEditP(null); } 
+      else { toast("err", `⛔ Error en BD`); }
     });
   };
 
@@ -918,23 +859,18 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
 
   return(
     <div style={{height:"100%",overflowY:"auto",padding:16}}>
-
-      {/* HEADER */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,gap:10}}>
         <span style={{fontWeight:800,fontSize:18,color:"#111"}}>📦 Productos</span>
         <div style={{display:"flex",gap:8}}>
-          <button onClick={recargarProductos} className="hap" style={{background:"#fff",border:"1px solid rgba(0,0,0,.1)",borderRadius:12,padding:"8px 12px",color:"rgba(0,0,0,.6)",fontSize:12,fontWeight:600}}>↻</button>
+          <button onClick={recargarGlobal} className="hap" style={{background:"#fff",border:"1px solid rgba(0,0,0,.1)",borderRadius:12,padding:"8px 12px",color:"rgba(0,0,0,.6)",fontSize:12,fontWeight:600}}>↻</button>
           <button onClick={()=>setVista(v=>v==="grid"?"lista":"grid")} className="hap" style={{background:"#fff",border:"1px solid rgba(0,0,0,.1)",borderRadius:12,padding:"8px 12px",color:"rgba(0,0,0,.6)",fontSize:14}}>
             {vista==="grid"?"☰":"⊞"}
           </button>
           <button onClick={()=>setEditP(EMPTY_PROD())} className="hap" style={{background:ROLES[role].grad,border:"none",borderRadius:12,padding:"8px 16px",color:"#fff",fontSize:13,fontWeight:700,boxShadow:`0 4px 16px ${accent}40`}}>+ Nuevo</button>
         </div>
       </div>
-
       <SearchBar value={search} onChange={setSearch} placeholder="Buscar nombre o SKU..."/>
       <CatChips cats={allCats} active={catFilter} onChange={setCatFilter} accent={accent}/>
-
-      {/* RESUMEN */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:14}}>
         {[
           {l:"Total",v:productos?.length || 0,c:"rgba(0,0,0,.6)"},
@@ -947,8 +883,6 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
           </div>
         ))}
       </div>
-
-      {/* LISTA / GRID */}
       {vista==="grid"?(
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:10}}>
           {filtered.map(p=>{
@@ -1017,8 +951,6 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
           })}
         </div>
       )}
-
-      {/* SHEET STOCK */}
       <Sheet open={!!stockP} onClose={()=>setStockP(null)} title={`📥 Ingresar Stock`}>
         {stockP&&(
           <div style={{display:"flex",flexDirection:"column",gap:14}}>
@@ -1048,18 +980,16 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
         )}
       </Sheet>
 
-      {/* AQUÍ SE AÑADIÓ 'role={role}' PARA QUE EL FORMULARIO SEPA DE QUÉ COLOR PINTAR EL BOTÓN */}
       <Sheet open={!!editP} onClose={()=>setEditP(null)} title={editP?.id?"✏️ Editar producto":"✨ Nuevo producto"}>
         {editP&&<FormProducto prod={editP} onSave={saveProduct} onClose={()=>setEditP(null)} accent={accent} allCats={allCats} role={role}/>}
       </Sheet>
-
     </div>
   );
 }
 
 /* ── DASHBOARD ── */
 function Dashboard({orders,productos,transfers}){
-  const accent="#a855f7"; // Lila admin
+  const accent="#a855f7"; 
   const confirmed=orders.filter(o=>!["cancelado","pago_pendiente"].includes(o.status));
   const totalRev=confirmed.reduce((s,o)=>s+o.total,0);
   const todayO=orders.filter(o=>new Date(o.createdAt).toDateString()===new Date().toDateString());
@@ -1088,39 +1018,6 @@ function Dashboard({orders,productos,transfers}){
           <div key={i} style={{background:"#fff",border:`1px solid rgba(0,0,0,.06)`,borderRadius:20,padding:"16px 14px",boxShadow:"0 4px 16px rgba(0,0,0,.02)"}}><div style={{fontSize:22,marginBottom:6}}>{st.icon}</div><div style={{fontWeight:900,fontSize:20,color:st.c,letterSpacing:-0.5}}>{st.v}</div><div style={{fontSize:11,color:"rgba(0,0,0,.6)",marginTop:4}}>{st.l}</div><div style={{fontSize:10,color:"rgba(0,0,0,.4)",marginTop:1}}>{st.sub}</div></div>
         ))}
       </div>
-      <div style={{background:"#fff",border:"1px solid rgba(0,0,0,.08)",borderRadius:22,padding:"18px 16px",marginBottom:14,boxShadow:"0 4px 20px rgba(0,0,0,.03)"}}>
-        <div style={{fontSize:12,color:"rgba(0,0,0,.5)",fontWeight:700,letterSpacing:1,marginBottom:16}}>VENTAS ÚLTIMOS 7 DÍAS</div>
-        <div style={{display:"flex",gap:8,alignItems:"flex-end",height:90}}>
-          {last7.map((d,i)=>{const h=d.rev>0?Math.max(14,Math.round((d.rev/maxRev)*80)):6;const isT=i===6;return(<div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:5}}><div style={{width:"100%",height:h,background:isT?accent:d.rev>0?"rgba(168,85,247,.2)":"#f4f5f8",borderRadius:6,boxShadow:isT?`0 4px 16px ${accent}40`:"none"}}/><div style={{fontSize:9,color:isT?accent:"rgba(0,0,0,.4)",fontWeight:isT?800:500}}>{d.label}</div></div>);})}
-        </div>
-      </div>
-      <div style={{background:"#fff",border:"1px solid rgba(0,0,0,.08)",borderRadius:22,padding:"18px 16px",marginBottom:14,boxShadow:"0 4px 20px rgba(0,0,0,.03)"}}>
-        <div style={{fontSize:12,color:"rgba(0,0,0,.5)",fontWeight:700,letterSpacing:1,marginBottom:14}}>VENTAS POR CANAL</div>
-        {[{ch:"tienda",l:"🏪 Tienda",c:"#f43f5e"},{ch:"live",l:"📱 Live/WA",c:"#ec4899"}].map(({ch,l,c})=>{const rev=byChannel[ch],pct=totalRev>0?Math.round((rev/totalRev)*100):0;return(<div key={ch} style={{marginBottom:14}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:13,fontWeight:600,color:"#111"}}>{l}</span><span style={{fontWeight:800,color:c}}>{pct}% · {f(rev)}</span></div><div style={{height:8,background:"#f4f5f8",borderRadius:4,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:c,borderRadius:4}}/></div></div>);})}
-      </div>
-      <div style={{background:"#fff",border:"1px solid rgba(0,0,0,.08)",borderRadius:22,padding:"18px 16px",marginBottom:14,boxShadow:"0 4px 20px rgba(0,0,0,.03)"}}>
-        <div style={{fontSize:12,color:"rgba(0,0,0,.5)",fontWeight:700,letterSpacing:1,marginBottom:14}}>🏆 TOP PRODUCTOS</div>
-        {topProds.length===0&&<div style={{color:"rgba(0,0,0,.4)",textAlign:"center",padding:"16px 0",fontSize:13}}>Sin ventas aún</div>}
-        {topProds.map((tp,i)=>{const p=productos.find(x=>x.id===tp.pid);if(!p)return null;return(<div key={tp.pid} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:i<topProds.length-1?"1px solid rgba(0,0,0,.06)":"none"}}><div style={{width:26,height:26,background:"#f4f5f8",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:"rgba(0,0,0,.5)"}}>{i+1}</div><span style={{fontSize:20}}>{p.icon}</span><div style={{flex:1}}><div style={{fontWeight:600,fontSize:13,color:"#111"}}>{p.name}</div><div style={{fontSize:11,color:"rgba(0,0,0,.5)"}}>{tp.qty} vendidos</div></div><div style={{fontWeight:800,color:accent,fontSize:15}}>{f(tp.rev)}</div></div>);})}
-      </div>
-      <div style={{background:"#fff",border:"1px solid rgba(0,0,0,.08)",borderRadius:22,padding:"18px 16px",marginBottom:14,boxShadow:"0 4px 20px rgba(0,0,0,.03)"}}>
-        <div style={{fontSize:12,color:"rgba(0,0,0,.5)",fontWeight:700,letterSpacing:1,marginBottom:14}}>👤 RENDIMIENTO POR VENDEDOR</div>
-        {sellerStats.map((s,i)=>{const r=ROLES[s.seller]||{label:s.seller,accent:"#888",icon:"👤"};const pct=totalRev>0?Math.round((s.rev/totalRev)*100):0;return(<div key={s.seller} style={{marginBottom:i<sellerStats.length-1?16:0,paddingBottom:i<sellerStats.length-1?16:0,borderBottom:i<sellerStats.length-1?"1px solid rgba(0,0,0,.06)":"none"}}><div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}><div style={{width:38,height:38,borderRadius:12,background:`${r.accent}15`,border:`1px solid ${r.accent}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{r.icon}</div><div style={{flex:1}}><div style={{fontWeight:700,fontSize:14,color:"#111"}}>{r.label}</div><div style={{fontSize:11,color:"rgba(0,0,0,.5)",marginTop:1}}>{s.count} pedidos</div></div><div style={{textAlign:"right"}}><div style={{fontWeight:900,color:r.accent,fontSize:18}}>{f(s.rev)}</div><div style={{fontSize:11,color:"rgba(0,0,0,.4)"}}>{pct}%</div></div></div><div style={{height:6,background:"#f4f5f8",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:r.accent,borderRadius:3}}/></div></div>);})}
-      </div>
-      {productos.some(p=>p.stockTienda<=p.stockMin||p.stockLive<=p.stockMin)&&(
-        <div style={{background:"rgba(245,158,11,.05)",border:"1px solid rgba(245,158,11,.2)",borderRadius:22,padding:"18px 16px"}}>
-          <div style={{fontSize:12,color:"#d97706",fontWeight:700,letterSpacing:1,marginBottom:12}}>⚠ ALERTAS DE STOCK</div>
-          {productos.filter(p=>p.stockTienda<=p.stockMin||p.stockLive<=p.stockMin).map(p=>(
-            <div key={p.id} style={{padding:"8px 0",borderBottom:"1px solid rgba(0,0,0,.05)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <span style={{fontSize:13,fontWeight:600,color:"#111"}}>{p.icon} {p.name}</span>
-              <div style={{display:"flex",gap:8}}>
-                {p.stockTienda<=p.stockMin&&<span style={{fontWeight:800,color:p.stockTienda===0?"#ef4444":"#d97706",fontSize:13}}>🏪 {p.stockTienda}u</span>}
-                {p.stockLive<=p.stockMin&&<span style={{fontWeight:800,color:p.stockLive===0?"#ef4444":"#d97706",fontSize:13}}>📱 {p.stockLive}u</span>}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -1132,31 +1029,37 @@ function App(){
   const [productos,setProductos]=useState([]);
   const [orders,setOrders]=useState([]);
   const [transfers,setTransfers]=useState([]);
+  const [clientes,setClientes]=useState([]);
   const [toasts,setToasts]=useState([]);
   const [cargando,setCargando]=useState(false);
 
   const toast=useCallback((type,msg)=>{const id=Date.now();setToasts(t=>[...t,{id,type,msg}]);setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),3500);},[]);
-  const recargarProductos=useCallback(()=>{fetch(`${API_URL}/productos`).then(r=>r.json()).then(data=>setProductos(data.map(normProd))).catch(()=>toast("err","❌ Error actualizando inventario"));},[toast]);
-
-  useEffect(()=>{
-    if(!role) return;
-    setCargando(true);
+  
+  const recargarGlobal=useCallback(()=>{
     Promise.all([
       fetch(`${API_URL}/productos`).then(r=>r.json()),
-      fetch(`${API_URL}/pedidos`).then(r=>r.json())
-    ]).then(([prodsData, ordersData])=>{
+      fetch(`${API_URL}/pedidos`).then(r=>r.json()),
+      fetch(`${API_URL}/traspasos`).then(r=>r.json()),
+      fetch(`${API_URL}/clientes`).then(r=>r.json())
+    ]).then(([prodsData, ordersData, trfData, cliData])=>{
       setProductos(prodsData.map(normProd));
-      
-      const mappedOrders = ordersData.map(o => ({
+      setOrders(ordersData.map(o => ({
          id: o.id, seller: o.seller, client: o.client, phone: o.phone,
          channel: o.channel, status: o.status, total: o.total, subtotal: o.subtotal,
          discount: o.discount || 0, notes: o.notes || "", internalNote: o.internal_note || "",
          items: o.items || [], createdAt: o.created_at
-      }));
-      setOrders(mappedOrders);
-      setCargando(false);
-    }).catch(()=>{setCargando(false);toast("err","❌ Error conectando a la BD");});
-  },[role]);
+      })));
+      setTransfers(trfData || []);
+      setClientes(cliData || []);
+    }).catch(()=>toast("err","❌ Error actualizando datos"));
+  },[toast]);
+
+  useEffect(()=>{
+    if(!role) return;
+    setCargando(true);
+    recargarGlobal();
+    setCargando(false);
+  },[role, recargarGlobal]);
 
   if(!role) return <Login onLogin={r=>{setRole(r);setPage("venta");}}/>;
 
@@ -1177,10 +1080,10 @@ function App(){
 
   const renderPage=()=>{
     if(cargando) return <div style={{height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:20}}><div style={{width:56,height:56,border:`3px solid rgba(0,0,0,.08)`,borderTop:`3px solid ${accent}`,borderRadius:"50%",animation:"spin 1s linear infinite"}}/><p style={{color:accent,fontWeight:700,fontSize:14,animation:"pulse 1.5s ease-in-out infinite"}}>Cargando Balespi PRO…</p></div>;
-    if(page==="venta")     return <Venta role={role} productos={productos} recargarProductos={recargarProductos} orders={orders} setOrders={setOrders} transfers={transfers} setTransfers={setTransfers} toast={toast}/>;
-    if(page==="pedidos")   return <Pedidos orders={orders} setOrders={setOrders} productos={productos} accent={accent} role={role} toast={toast}/>;
-    if(page==="productos") return <ProductosScreen productos={productos} setProductos={setProductos} role={role} toast={toast} recargarProductos={recargarProductos}/>;
-    if(page==="traspasos") return <Traspasos transfers={transfers} setTransfers={setTransfers} productos={productos} setProductos={setProductos} role={role} toast={toast}/>;
+    if(page==="venta")     return <Venta role={role} productos={productos} clientes={clientes} recargarGlobal={recargarGlobal} orders={orders} setOrders={setOrders} transfers={transfers} setTransfers={setTransfers} toast={toast}/>;
+    if(page==="pedidos")   return <Pedidos orders={orders} setOrders={setOrders} productos={productos} accent={accent} role={role} toast={toast} recargarGlobal={recargarGlobal}/>;
+    if(page==="productos") return <ProductosScreen productos={productos} setProductos={setProductos} role={role} toast={toast} recargarGlobal={recargarGlobal}/>;
+    if(page==="traspasos") return <Traspasos transfers={transfers} setTransfers={setTransfers} productos={productos} setProductos={setProductos} role={role} toast={toast} recargarGlobal={recargarGlobal}/>;
     if(page==="dashboard") return <Dashboard orders={orders} productos={productos} transfers={transfers}/>;
     return null;
   };
@@ -1213,7 +1116,6 @@ function App(){
       <Ambient rk={role}/>
       <Toasts toasts={toasts} rm={id=>setToasts(t=>t.filter(x=>x.id!==id))}/>
       <div className="shell">
-
         <div className="sidebar">
           <div style={{padding:"20px 16px 16px",borderBottom:"1px solid rgba(0,0,0,.08)"}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
