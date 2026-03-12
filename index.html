@@ -294,12 +294,36 @@ function Venta({role,productos,clientes,recargarGlobal,orders,setOrders,transfer
   const getPrice=p=>calcPrice(p,channel,saleType);
   const filtered=useMemo(()=>productos.filter(p=>p.active&&(!catFilter||p.cat===catFilter)&&(!search||p.name.toLowerCase().includes(search.toLowerCase()))),
     [productos,catFilter,search]);
-  const add=p=>setCart(prev=>{
-    const ex=prev.find(c=>c.pid===p.id&&c.type===saleType);
-    if(ex) return prev.map(c=>c.pid===p.id&&c.type===saleType?{...c,qty:c.qty+1}:c);
-    return [...prev,{pid:p.id,type:saleType,qty:1}];
-  });
-  const setQty=(pid,type,qty)=>qty<1?setCart(prev=>prev.filter(c=>!(c.pid===pid&&c.type===type))):setCart(prev=>prev.map(c=>c.pid===pid&&c.type===type?{...c,qty}:c));
+  
+  // LOGICA CORREGIDA PARA BLOQUEAR SI NO HAY STOCK TOTAL
+  const add=p=>{
+    const maxUnits = (p.stockTienda||0) + (p.stockLive||0);
+    const needed = calcUnits(p, saleType, 1);
+    if (needed > maxUnits) {
+        toast("err", "No hay stock suficiente en ningún almacén para esta presentación.");
+        return;
+    }
+    setCart(prev=>{
+      const ex=prev.find(c=>c.pid===p.id&&c.type===saleType);
+      if(ex) return prev.map(c=>c.pid===p.id&&c.type===saleType?{...c,qty:c.qty+1}:c);
+      return [...prev,{pid:p.id,type:saleType,qty:1}];
+    });
+  };
+  const setQty=(pid,type,qty)=>{
+    if(qty<1){
+      setCart(prev=>prev.filter(c=>!(c.pid===pid&&c.type===type)));
+      return;
+    }
+    const p = productos.find(x=>x.id===pid);
+    const maxUnits = (p.stockTienda||0) + (p.stockLive||0);
+    const needed = calcUnits(p, type, qty);
+    if (needed > maxUnits) {
+        toast("warn", `Stock máximo alcanzado (${maxUnits}u en total)`);
+        return;
+    }
+    setCart(prev=>prev.map(c=>c.pid===pid&&c.type===type?{...c,qty}:c));
+  };
+  
   const subtotal=cart.reduce((s,c)=>{const p=productos.find(x=>x.id===c.pid);return s+(p?getPrice(p)*c.qty:0);},0);
   const total=applyDisc(subtotal,discountPct);
   const totalItems=cart.reduce((s,c)=>s+c.qty,0);
@@ -392,14 +416,21 @@ function Venta({role,productos,clientes,recargarGlobal,orders,setOrders,transfer
             const basePrice=channel==="tienda"?p.prices.tienda:p.prices.live;
             const item=cart.find(c=>c.pid===p.id&&c.type===saleType);
             const qty=item?.qty||0;
-            const stockCanal=p[stockKey];
-            const sinStock=stockCanal<=0;
+            
+            // LOGICA CORREGIDA DE TRASPASO VISUAL
+            const stockCanal = p[stockKey] || 0;
+            const stockOtro = p[otherKey] || 0;
+            const stockTotal = stockCanal + stockOtro;
+            const sinStockTotal = stockTotal <= 0; // Solo si AMBOS canales son 0
+            const requiereTraspasoInicial = stockCanal <= 0 && stockTotal > 0; // No hay aquí, pero hay en el otro
+            
             const stockBajo=stockCanal>0&&stockCanal<=p.stockMin;
             const insuf=qty>0&&calcUnits(p,saleType,qty)>stockCanal;
+            
             return(
-              <div key={p.id} style={{background:insuf?"linear-gradient(145deg,rgba(245,158,11,.1),rgba(245,158,11,.02))":qty>0?`linear-gradient(145deg,${accent}10,${accent}02)`:"#fff",border:`1.5px solid ${insuf?"#f59e0b55":qty>0?accent+"55":"rgba(0,0,0,.06)"}`,borderRadius:22,overflow:"hidden",transition:"all .3s",position:"relative",opacity:sinStock?.45:1,boxShadow:"0 4px 16px rgba(0,0,0,.02)"}}>
-                <div style={{position:"absolute",top:9,right:9,background:sinStock?"rgba(239,68,68,.15)":stockBajo?"rgba(245,158,11,.15)":"rgba(0,0,0,.05)",border:`1px solid ${sinStock?"rgba(239,68,68,.3)":stockBajo?"rgba(245,158,11,.3)":"rgba(0,0,0,.05)"}`,borderRadius:8,padding:"3px 8px",fontSize:9,fontWeight:800,color:sinStock?"#dc2626":stockBajo?"#d97706":"rgba(0,0,0,.5)"}}>
-                  {sinStock?"AGOTADO":`${stockCanal}u`}
+              <div key={p.id} style={{background:insuf?"linear-gradient(145deg,rgba(245,158,11,.1),rgba(245,158,11,.02))":qty>0?`linear-gradient(145deg,${accent}10,${accent}02)`:"#fff",border:`1.5px solid ${insuf?"#f59e0b55":qty>0?accent+"55":"rgba(0,0,0,.06)"}`,borderRadius:22,overflow:"hidden",transition:"all .3s",position:"relative",opacity:sinStockTotal?.45:1,boxShadow:"0 4px 16px rgba(0,0,0,.02)"}}>
+                <div style={{position:"absolute",top:9,right:9,background:sinStockTotal?"rgba(239,68,68,.15)":stockBajo?"rgba(245,158,11,.15)":"rgba(0,0,0,.05)",border:`1px solid ${sinStockTotal?"rgba(239,68,68,.3)":stockBajo?"rgba(245,158,11,.3)":"rgba(0,0,0,.05)"}`,borderRadius:8,padding:"3px 8px",fontSize:9,fontWeight:800,color:sinStockTotal?"#dc2626":stockBajo?"#d97706":"rgba(0,0,0,.5)"}}>
+                  {sinStockTotal?"AGOTADO":`${stockCanal}u`}
                 </div>
                 {p.promo&&<div style={{position:"absolute",top:9,left:9,background:"linear-gradient(135deg,#f43f5e,#f59e0b)",borderRadius:8,padding:"2px 8px",fontSize:9,fontWeight:900,color:"#fff"}}>🔥 {p.promo.label}</div>}
                 <div style={{padding:"20px 14px 10px"}}>
@@ -413,10 +444,12 @@ function Venta({role,productos,clientes,recargarGlobal,orders,setOrders,transfer
                   <div style={{textAlign:"center",fontSize:10,color:"rgba(0,0,0,.4)",marginTop:2}}>{saleType==="unidad"?"por unidad":saleType==="docena"?`docena·${p.perDozen}u`:`cajón·${p.perBox}u`}</div>
                   {insuf&&<div style={{marginTop:6,background:"rgba(245,158,11,.1)",border:"1px solid rgba(245,158,11,.2)",borderRadius:10,padding:"4px 8px",textAlign:"center",fontSize:9,fontWeight:700,color:"#d97706"}}>solo {stockCanal}u · traspaso</div>}
                 </div>
+                
+                {/* BOTÓN INTELIGENTE DE TRASPASO */}
                 <div style={{padding:"0 10px 12px"}}>
                   {qty===0?(
-                    <button onClick={()=>!sinStock&&add(p)} className="hap" style={{width:"100%",background:sinStock?"#f4f5f8":"rgba(0,0,0,.03)",border:`1px solid ${sinStock?"rgba(0,0,0,.03)":"rgba(0,0,0,.06)"}`,borderRadius:12,padding:"12px",color:sinStock?"rgba(0,0,0,.3)":"rgba(0,0,0,.8)",fontSize:14,fontWeight:700,cursor:sinStock?"not-allowed":"pointer"}}>
-                      {sinStock?"Sin stock":"+ Agregar"}
+                    <button onClick={()=>!sinStockTotal&&add(p)} className="hap" style={{width:"100%",background:sinStockTotal?"#f4f5f8":requiereTraspasoInicial?"rgba(245,158,11,.1)":"rgba(0,0,0,.03)",border:`1px solid ${sinStockTotal?"rgba(0,0,0,.03)":requiereTraspasoInicial?"rgba(245,158,11,.3)":"rgba(0,0,0,.06)"}`,borderRadius:12,padding:"12px",color:sinStockTotal?"rgba(0,0,0,.3)":requiereTraspasoInicial?"#d97706":"rgba(0,0,0,.8)",fontSize:14,fontWeight:700,cursor:sinStockTotal?"not-allowed":"pointer"}}>
+                      {sinStockTotal?"Sin stock":requiereTraspasoInicial?"🔀 Traspasar":"+ Agregar"}
                     </button>
                   ):(
                     <div style={{display:"flex",alignItems:"center",background:"#fff",borderRadius:12,border:`1px solid ${insuf?"#f59e0b50":accent+"50"}`,overflow:"hidden",boxShadow:`0 4px 12px ${accent}15`}}>
@@ -442,7 +475,6 @@ function Venta({role,productos,clientes,recargarGlobal,orders,setOrders,transfer
       )}
       <Sheet open={clientOpen} onClose={()=>setClientOpen(false)} title="Datos del cliente">
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
-          {/* LÓGICA PARA AUTO-COMPLETAR CLIENTE DESDE BD */}
           <GInput label="WhatsApp (Busca al cliente)" value={client.phone} onChange={v=>{
              setClient({...client, phone:v});
              const found = clientes.find(c => c.phone === v);
@@ -451,14 +483,11 @@ function Venta({role,productos,clientes,recargarGlobal,orders,setOrders,transfer
                setNotes(found.address || "");
              }
           }} placeholder="987 654 321" type="tel" icon="📱" list="lista-clientes"/>
-          
           <datalist id="lista-clientes">
             {clientes.map(c => <option key={c.phone} value={c.phone}>{c.name}</option>)}
           </datalist>
-
           <GInput label="Nombre completo" value={client.name} onChange={v=>setClient({...client,name:v})} placeholder="Ej: María López" icon="👤"/>
           <GInput label="Dirección / Referencia" value={notes} onChange={setNotes} placeholder="Calle, distrito..." icon="📍"/>
-          
           <button onClick={()=>{if(client.name&&client.phone){setClientOpen(false);if(cart.length>0)setCartOpen(true);}}} className="hap" style={{background:client.name&&client.phone?ROLES[role].grad:"rgba(0,0,0,.05)",color:client.name&&client.phone?"#fff":"rgba(0,0,0,.3)",border:"none",borderRadius:18,padding:"16px",fontSize:15,fontWeight:700,cursor:client.name&&client.phone?"pointer":"not-allowed",boxShadow:client.name&&client.phone?`0 8px 24px ${accent}30`:"none"}}>Continuar →</button>
         </div>
       </Sheet>
@@ -600,8 +629,11 @@ function Pedidos({orders,setOrders,productos,accent,role,toast,recargarGlobal}){
                  });
               }} className="hap" style={{marginTop:10,background:"rgba(99,108,241,.1)",border:"1px solid rgba(99,108,241,.2)",borderRadius:12,padding:"9px 18px",color:"#4f46e5",fontSize:13,fontWeight:700}}>Guardar nota</button>
             </div>
+            
             {!["cancelado","entregado"].includes(sel.status) && sel.channel !== "tienda" &&(
-              <button onClick={()=>advance(sel)} className="hap" style={{background:ROLES[role].grad,color:"#fff",border:"none",borderRadius:18,padding:"15px",fontSize:15,fontWeight:800,boxShadow:`0 8px 24px ${accent}40`}}>{sel.status==="pago_pendiente"?"💸 Marcar Pago Recibido":sel.status==="pago_recibido"?"✅ Verificar Pago":`Avanzar → ${STATUS_MAP[FLOW[FLOW.indexOf(sel.status)+1]]?.label||""}`}</button>
+              <button onClick={()=>advance(sel)} className="hap" style={{background:ROLES[role].grad,color:"#fff",border:"none",borderRadius:18,padding:"15px",fontSize:15,fontWeight:800,boxShadow:`0 8px 24px ${accent}40`}}>
+                {sel.status==="pago_pendiente"?"💸 Marcar Pago Recibido":sel.status==="pago_recibido"?"✅ Verificar Pago":`Avanzar → ${STATUS_MAP[FLOW[FLOW.indexOf(sel.status)+1]]?.label||""}`}
+              </button>
             )}
           </div>
         )}
@@ -624,7 +656,7 @@ function Traspasos({transfers,setTransfers,productos,setProductos,role,toast,rec
     .then(r=>r.json()).then(data=>{
        if(data.estado==="exito"){
          toast("ok",`✅ Traspaso confirmado · ${t.unidades}u`);
-         recargarGlobal(); // Recarga productos y traspasos
+         recargarGlobal(); 
        }
     });
   };
@@ -686,7 +718,7 @@ function Traspasos({transfers,setTransfers,productos,setProductos,role,toast,rec
   );
 }
 
-/* ── PRODUCTOS ── */
+/* ── FORM PRODUCTO (CATEGORÍAS LIBRES) ── */
 const EMPTY_PROD = () => ({
   id: null, name:"", sku:"", cat:"", icon:"📦", photo:null,
   prices:{tienda:0,live:0,docena_unit:0,cajon_unit:0},
@@ -702,6 +734,9 @@ function FormProducto({prod,onSave,onClose,accent,allCats,role}){
   const [f_,setF_]=useState({...EMPTY_PROD(), ...prod, sku: prod.sku || String(Date.now()).slice(-6)});
   const [promoPct,setPromoPct]=useState(prod.promo?.pct||0);
   const [showIconPicker,setShowIconPicker]=useState(false);
+  
+  // ESTADO PARA SABER SI ESTÁ ESCRIBIENDO UNA NUEVA CATEGORÍA
+  const [isNewCat, setIsNewCat] = useState(false);
 
   const set=(k,v)=>setF_(p=>({...p,[k]:v}));
   const setPrice=(k,v)=>setF_(p=>({...p,prices:{...p.prices,[k]:Number(v)||0}}));
@@ -755,11 +790,25 @@ function FormProducto({prod,onSave,onClose,accent,allCats,role}){
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
           <GInput label="SKU / Código" value={f_.sku} onChange={v=>set("sku",v)} placeholder="FRH-001" icon="🔖"/>
           
-          {/* LÓGICA DE CATEGORÍAS LIBRES O LISTA */}
-          <GInput label="Categoría" list="cat-opts" value={f_.cat} onChange={v=>set("cat",v)} placeholder="Escribe o elige..." />
-          <datalist id="cat-opts">
-            {allCatsOpts.map(c=><option key={c} value={c}/>)}
-          </datalist>
+          {/* SELECTOR INTELIGENTE DE CATEGORÍAS */}
+          <div>
+            <div style={{fontSize:11,fontWeight:600,color:"rgba(0,0,0,.5)",letterSpacing:1.2,textTransform:"uppercase",marginBottom:7}}>Categoría</div>
+            {!isNewCat ? (
+              <select value={f_.cat} onChange={e=>{
+                  if(e.target.value === '__NEW__') { setIsNewCat(true); set("cat", ""); }
+                  else set("cat", e.target.value);
+                }} style={{width:"100%",background:"#fff",border:"1px solid rgba(0,0,0,.1)",borderRadius:14,padding:"13px 16px",color:f_.cat?"#111":"rgba(0,0,0,.4)",fontSize:14,outline:"none",appearance:"none",cursor:"pointer"}}>
+                <option value="">— elegir —</option>
+                {allCatsOpts.map(c=><option key={c} value={c}>{c}</option>)}
+                <option value="__NEW__" style={{fontWeight:"bold", color:accent}}>+ Crear nueva...</option>
+              </select>
+            ) : (
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <input type="text" autoFocus value={f_.cat} onChange={e=>set("cat",e.target.value)} placeholder="Nombre de categoría..." style={{flex:1,background:"#fff",border:"1px solid rgba(0,0,0,.1)",borderRadius:14,padding:"13px 16px",color:"#111",fontSize:14,outline:"none"}}/>
+                <button onClick={()=>{setIsNewCat(false); set("cat", "");}} className="hap" style={{background:"rgba(239,68,68,.1)",border:"none",borderRadius:14,width:45,height:45,color:"#dc2626",fontSize:16,fontWeight:"bold",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+              </div>
+            )}
+          </div>
 
         </div>
       </div>
@@ -951,6 +1000,8 @@ function ProductosScreen({productos,setProductos,role,toast,recargarGlobal}){
           })}
         </div>
       )}
+
+      {/* SHEET STOCK */}
       <Sheet open={!!stockP} onClose={()=>setStockP(null)} title={`📥 Ingresar Stock`}>
         {stockP&&(
           <div style={{display:"flex",flexDirection:"column",gap:14}}>
@@ -983,6 +1034,7 @@ function ProductosScreen({productos,setProductos,role,toast,recargarGlobal}){
       <Sheet open={!!editP} onClose={()=>setEditP(null)} title={editP?.id?"✏️ Editar producto":"✨ Nuevo producto"}>
         {editP&&<FormProducto prod={editP} onSave={saveProduct} onClose={()=>setEditP(null)} accent={accent} allCats={allCats} role={role}/>}
       </Sheet>
+
     </div>
   );
 }
@@ -1018,6 +1070,39 @@ function Dashboard({orders,productos,transfers}){
           <div key={i} style={{background:"#fff",border:`1px solid rgba(0,0,0,.06)`,borderRadius:20,padding:"16px 14px",boxShadow:"0 4px 16px rgba(0,0,0,.02)"}}><div style={{fontSize:22,marginBottom:6}}>{st.icon}</div><div style={{fontWeight:900,fontSize:20,color:st.c,letterSpacing:-0.5}}>{st.v}</div><div style={{fontSize:11,color:"rgba(0,0,0,.6)",marginTop:4}}>{st.l}</div><div style={{fontSize:10,color:"rgba(0,0,0,.4)",marginTop:1}}>{st.sub}</div></div>
         ))}
       </div>
+      <div style={{background:"#fff",border:"1px solid rgba(0,0,0,.08)",borderRadius:22,padding:"18px 16px",marginBottom:14,boxShadow:"0 4px 20px rgba(0,0,0,.03)"}}>
+        <div style={{fontSize:12,color:"rgba(0,0,0,.5)",fontWeight:700,letterSpacing:1,marginBottom:16}}>VENTAS ÚLTIMOS 7 DÍAS</div>
+        <div style={{display:"flex",gap:8,alignItems:"flex-end",height:90}}>
+          {last7.map((d,i)=>{const h=d.rev>0?Math.max(14,Math.round((d.rev/maxRev)*80)):6;const isT=i===6;return(<div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:5}}><div style={{width:"100%",height:h,background:isT?accent:d.rev>0?"rgba(168,85,247,.2)":"#f4f5f8",borderRadius:6,boxShadow:isT?`0 4px 16px ${accent}40`:"none"}}/><div style={{fontSize:9,color:isT?accent:"rgba(0,0,0,.4)",fontWeight:isT?800:500}}>{d.label}</div></div>);})}
+        </div>
+      </div>
+      <div style={{background:"#fff",border:"1px solid rgba(0,0,0,.08)",borderRadius:22,padding:"18px 16px",marginBottom:14,boxShadow:"0 4px 20px rgba(0,0,0,.03)"}}>
+        <div style={{fontSize:12,color:"rgba(0,0,0,.5)",fontWeight:700,letterSpacing:1,marginBottom:14}}>VENTAS POR CANAL</div>
+        {[{ch:"tienda",l:"🏪 Tienda",c:"#f43f5e"},{ch:"live",l:"📱 Live/WA",c:"#ec4899"}].map(({ch,l,c})=>{const rev=byChannel[ch],pct=totalRev>0?Math.round((rev/totalRev)*100):0;return(<div key={ch} style={{marginBottom:14}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:13,fontWeight:600,color:"#111"}}>{l}</span><span style={{fontWeight:800,color:c}}>{pct}% · {f(rev)}</span></div><div style={{height:8,background:"#f4f5f8",borderRadius:4,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:c,borderRadius:4}}/></div></div>);})}
+      </div>
+      <div style={{background:"#fff",border:"1px solid rgba(0,0,0,.08)",borderRadius:22,padding:"18px 16px",marginBottom:14,boxShadow:"0 4px 20px rgba(0,0,0,.03)"}}>
+        <div style={{fontSize:12,color:"rgba(0,0,0,.5)",fontWeight:700,letterSpacing:1,marginBottom:14}}>🏆 TOP PRODUCTOS</div>
+        {topProds.length===0&&<div style={{color:"rgba(0,0,0,.4)",textAlign:"center",padding:"16px 0",fontSize:13}}>Sin ventas aún</div>}
+        {topProds.map((tp,i)=>{const p=productos.find(x=>x.id===tp.pid);if(!p)return null;return(<div key={tp.pid} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:i<topProds.length-1?"1px solid rgba(0,0,0,.06)":"none"}}><div style={{width:26,height:26,background:"#f4f5f8",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:"rgba(0,0,0,.5)"}}>{i+1}</div><span style={{fontSize:20}}>{p.icon}</span><div style={{flex:1}}><div style={{fontWeight:600,fontSize:13,color:"#111"}}>{p.name}</div><div style={{fontSize:11,color:"rgba(0,0,0,.5)"}}>{tp.qty} vendidos</div></div><div style={{fontWeight:800,color:accent,fontSize:15}}>{f(tp.rev)}</div></div>);})}
+      </div>
+      <div style={{background:"#fff",border:"1px solid rgba(0,0,0,.08)",borderRadius:22,padding:"18px 16px",marginBottom:14,boxShadow:"0 4px 20px rgba(0,0,0,.03)"}}>
+        <div style={{fontSize:12,color:"rgba(0,0,0,.5)",fontWeight:700,letterSpacing:1,marginBottom:14}}>👤 RENDIMIENTO POR VENDEDOR</div>
+        {sellerStats.map((s,i)=>{const r=ROLES[s.seller]||{label:s.seller,accent:"#888",icon:"👤"};const pct=totalRev>0?Math.round((s.rev/totalRev)*100):0;return(<div key={s.seller} style={{marginBottom:i<sellerStats.length-1?16:0,paddingBottom:i<sellerStats.length-1?16:0,borderBottom:i<sellerStats.length-1?"1px solid rgba(0,0,0,.06)":"none"}}><div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}><div style={{width:38,height:38,borderRadius:12,background:`${r.accent}15`,border:`1px solid ${r.accent}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{r.icon}</div><div style={{flex:1}}><div style={{fontWeight:700,fontSize:14,color:"#111"}}>{r.label}</div><div style={{fontSize:11,color:"rgba(0,0,0,.5)",marginTop:1}}>{s.count} pedidos</div></div><div style={{textAlign:"right"}}><div style={{fontWeight:900,color:r.accent,fontSize:18}}>{f(s.rev)}</div><div style={{fontSize:11,color:"rgba(0,0,0,.4)"}}>{pct}%</div></div></div><div style={{height:6,background:"#f4f5f8",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:r.accent,borderRadius:3}}/></div></div>);})}
+      </div>
+      {productos.some(p=>p.stockTienda<=p.stockMin||p.stockLive<=p.stockMin)&&(
+        <div style={{background:"rgba(245,158,11,.05)",border:"1px solid rgba(245,158,11,.2)",borderRadius:22,padding:"18px 16px"}}>
+          <div style={{fontSize:12,color:"#d97706",fontWeight:700,letterSpacing:1,marginBottom:12}}>⚠ ALERTAS DE STOCK</div>
+          {productos.filter(p=>p.stockTienda<=p.stockMin||p.stockLive<=p.stockMin).map(p=>(
+            <div key={p.id} style={{padding:"8px 0",borderBottom:"1px solid rgba(0,0,0,.05)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontSize:13,fontWeight:600,color:"#111"}}>{p.icon} {p.name}</span>
+              <div style={{display:"flex",gap:8}}>
+                {p.stockTienda<=p.stockMin&&<span style={{fontWeight:800,color:p.stockTienda===0?"#ef4444":"#d97706",fontSize:13}}>🏪 {p.stockTienda}u</span>}
+                {p.stockLive<=p.stockMin&&<span style={{fontWeight:800,color:p.stockLive===0?"#ef4444":"#d97706",fontSize:13}}>📱 {p.stockLive}u</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
