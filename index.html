@@ -11,7 +11,6 @@
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
     
-    /* CAMBIO A MODO CLARO (LIGHT THEME) */
     html,body{height:100%;font-family:-apple-system,'Inter',sans-serif;background:#f4f5f8;color:#1a1a1c;-webkit-font-smoothing:antialiased;overflow:hidden}
     input,select,button,textarea{font-family:inherit}
     ::-webkit-scrollbar{width:4px}
@@ -62,7 +61,6 @@
 const { useState, useEffect, useCallback, useMemo } = React;
 const API_URL = "https://balespi-api.onrender.com";
 
-// NUEVA PALETA DE COLORES (Lila, Rosado, Magenta)
 const ROLES = {
   admin:    {key:"admin",    label:"Administrador", sub:"Acceso completo",        icon:"✦", accent:"#a855f7", grad:"linear-gradient(135deg,#c084fc,#9333ea)"},
   vendedor: {key:"vendedor", label:"Vendedor Live",  sub:"Live · TikTok · WhatsApp", icon:"◈", accent:"#ec4899", grad:"linear-gradient(135deg,#f472b6,#db2777)"},
@@ -172,14 +170,21 @@ function Sheet({open,onClose,title,children}){
     </div>
   );
 }
-function Pill({status}){
-  const st=STATUS_MAP[status]||{label:status,color:"#888"};
+
+// 💡 MODIFICACIÓN: Pill inteligente que detecta si es de Tienda
+function Pill({status, channel}){
+  let st = STATUS_MAP[status]||{label:status,color:"#888"};
+  // Si el canal es tienda, siempre mostramos Completado visualmente
+  if(channel === "tienda") {
+      st = {label:"Completado", color:"#10b981"};
+  }
   return(
     <span style={{display:"inline-flex",alignItems:"center",gap:5,background:`${st.color}18`,color:st.color,border:`1px solid ${st.color}33`,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>
       <span style={{fontSize:7}}>●</span>{st.label}
     </span>
   );
 }
+
 function GInput({label,value,onChange,type="text",placeholder,icon}){
   return(
     <div>
@@ -539,7 +544,7 @@ function Venta({role,productos,recargarProductos,orders,setOrders,transfers,setT
   );
 }
 
-/* ── PEDIDOS ── */
+/* ── PEDIDOS (AQUÍ ESTÁ EL CAMBIO DE LÓGICA TIENDA/LIVE) ── */
 function Pedidos({orders,setOrders,productos,accent,role,toast}){
   const [filter,setFilter]=useState("all");
   const [search,setSearch]=useState("");
@@ -574,7 +579,8 @@ function Pedidos({orders,setOrders,productos,accent,role,toast}){
                   {o.internalNote&&<span style={{fontSize:10,color:"#4f46e5",background:"rgba(99,108,241,.15)",padding:"2px 7px",borderRadius:6}}>nota</span>}
                 </div>
                 <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                  <Pill status={o.status}/>
+                  {/* Se envía el canal al Pill para saber cómo pintarlo */}
+                  <Pill status={o.status} channel={o.channel}/>
                   {o.discount>0&&<span style={{background:"rgba(244,63,94,.1)",color:"#e11d48",border:"1px solid rgba(244,63,94,.2)",borderRadius:10,padding:"2px 8px",fontSize:10,fontWeight:700}}>-{o.discount}%</span>}
                   <span style={{fontSize:11,color:"rgba(0,0,0,.4)",fontFamily:"monospace"}}>{o.id} · {ago(o.createdAt)}</span>
                 </div>
@@ -587,7 +593,7 @@ function Pedidos({orders,setOrders,productos,accent,role,toast}){
       <Sheet open={!!sel} onClose={()=>setSel(null)} title={sel?.id||""}>
         {sel&&(
           <div style={{display:"flex",flexDirection:"column",gap:14}}>
-            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Pill status={sel.status}/>{sel.discount>0&&<span style={{background:"rgba(244,63,94,.1)",color:"#e11d48",border:"1px solid rgba(244,63,94,.2)",borderRadius:20,padding:"4px 12px",fontSize:12,fontWeight:700}}>🎉 -{sel.discount}%</span>}</div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Pill status={sel.status} channel={sel.channel}/>{sel.discount>0&&<span style={{background:"rgba(244,63,94,.1)",color:"#e11d48",border:"1px solid rgba(244,63,94,.2)",borderRadius:20,padding:"4px 12px",fontSize:12,fontWeight:700}}>🎉 -{sel.discount}%</span>}</div>
             {sel.client!=="— Tienda —"&&<div style={{background:`${accent}08`,border:`1px solid ${accent}25`,borderRadius:16,padding:"14px 16px"}}><div style={{fontWeight:700,fontSize:15,color:"#111"}}>{sel.client}</div>{sel.phone&&<div style={{color:accent,fontSize:13,marginTop:4}}>📞 {sel.phone}</div>}</div>}
             <div style={{background:"#f8f9fa",border:"1px solid rgba(0,0,0,.08)",borderRadius:18,padding:"14px 16px"}}>
               {sel.items.map((it,i)=>{const p=productos.find(x=>x.id===it.pid);return p?(<div key={i} style={{display:"flex",justifyContent:"space-between",padding:"9px 0",borderBottom:i<sel.items.length-1?"1px solid rgba(0,0,0,.05)":"none",color:"#111"}}><span style={{fontSize:14}}>{p.icon} {p.name} <span style={{color:"rgba(0,0,0,.5)",fontSize:12}}>×{it.qty} {it.type} ({it.units}u)</span></span><span style={{fontWeight:700,color:accent}}>{f(it.price*it.qty)}</span></div>):null;})}
@@ -598,7 +604,13 @@ function Pedidos({orders,setOrders,productos,accent,role,toast}){
               <GTextarea value={editNote} onChange={setEditNote} placeholder="Solo el equipo puede ver esto..." rows={2}/>
               <button onClick={()=>{setOrders(prev=>prev.map(x=>x.id===sel.id?{...x,internalNote:editNote}:x));setSel(s=>({...s,internalNote:editNote}));toast("ok","🔒 Nota guardada");}} className="hap" style={{marginTop:10,background:"rgba(99,108,241,.1)",border:"1px solid rgba(99,108,241,.2)",borderRadius:12,padding:"9px 18px",color:"#4f46e5",fontSize:13,fontWeight:700}}>Guardar nota</button>
             </div>
-            {!["cancelado","entregado"].includes(sel.status)&&<button onClick={()=>advance(sel)} className="hap" style={{background:ROLES[role].grad,color:"#fff",border:"none",borderRadius:18,padding:"15px",fontSize:15,fontWeight:800,boxShadow:`0 8px 24px ${accent}40`}}>{sel.status==="pago_pendiente"?"💸 Marcar Pago Recibido":sel.status==="pago_recibido"?"✅ Verificar Pago":`Avanzar → ${STATUS_MAP[FLOW[FLOW.indexOf(sel.status)+1]]?.label||""}`}</button>}
+            
+            {/* LÓGICA DE BOTÓN AVANZAR: Oculto si es tienda o si ya está completado */}
+            {!["cancelado","entregado"].includes(sel.status) && sel.channel !== "tienda" &&(
+              <button onClick={()=>advance(sel)} className="hap" style={{background:ROLES[role].grad,color:"#fff",border:"none",borderRadius:18,padding:"15px",fontSize:15,fontWeight:800,boxShadow:`0 8px 24px ${accent}40`}}>
+                {sel.status==="pago_pendiente"?"💸 Marcar Pago Recibido":sel.status==="pago_recibido"?"✅ Verificar Pago":`Avanzar → ${STATUS_MAP[FLOW[FLOW.indexOf(sel.status)+1]]?.label||""}`}
+              </button>
+            )}
           </div>
         )}
       </Sheet>
@@ -672,7 +684,7 @@ function Traspasos({transfers,setTransfers,productos,setProductos,role,toast}){
   );
 }
 
-/* ── FORM PRODUCTO (crear / editar) ── */
+/* ── FORM PRODUCTO (CÓDIGO CON SUBIDA DE FOTO Y ROLE) ── */
 const EMPTY_PROD = () => ({
   id: null, name:"", sku:"", cat:"", icon:"📦", photo:null,
   prices:{tienda:0,live:0,docena_unit:0,cajon_unit:0},
@@ -683,7 +695,6 @@ const EMPTY_PROD = () => ({
 const ICONOS = ["📦","🧊","🫙","🪣","🛒","🥡","🫕","🧴","🍶","🫗","🪤","🧺","🧹","🪮","🫧","🍱","🥢","🧃","🫙","🪜"];
 const CATS_DEFAULT = ["Frascos","Tuppers","Utensilios","Accesorios","Bolsas","Otros"];
 
-// ¡AQUÍ ESTABA EL ERROR! Añadimos 'role' a la lista de variables que recibe el formulario
 function FormProducto({prod,onSave,onClose,accent,allCats,role}){
   const isEdit=!!prod.id;
   const [f_,setF_]=useState({
@@ -697,6 +708,17 @@ function FormProducto({prod,onSave,onClose,accent,allCats,role}){
   const set=(k,v)=>setF_(p=>({...p,[k]:v}));
   const setPrice=(k,v)=>setF_(p=>({...p,prices:{...p.prices,[k]:Number(v)||0}}));
   const allCatsOpts= useMemo(() => [...new Set([...CATS_DEFAULT,...(allCats || [])])], [allCats]);
+
+  // FUNCIÓN PARA LEER LA IMAGEN COMO BASE64
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+        set("photo", reader.result); // Esto guarda la foto real en formato texto seguro
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSave=()=>{
     if(!f_.name.trim()){alert("El nombre es obligatorio");return;}
@@ -714,7 +736,7 @@ function FormProducto({prod,onSave,onClose,accent,allCats,role}){
   return(
     <div style={{display:"flex",flexDirection:"column",gap:16}}>
 
-      {/* FOTO + ICONO */}
+      {/* FOTO + ICONO CON BOTÓN DE SUBIDA REAL */}
       <div style={{display:"flex",gap:14,alignItems:"center"}}>
         <div style={{position:"relative",flexShrink:0}}>
           <div onClick={()=>setShowIconPicker(v=>!v)} className="hap" style={{width:72,height:72,borderRadius:20,
@@ -727,11 +749,13 @@ function FormProducto({prod,onSave,onClose,accent,allCats,role}){
           {f_.photo&&<button onClick={()=>set("photo",null)} style={{position:"absolute",top:-6,right:-6,background:"#ef4444",border:"none",borderRadius:50,width:20,height:20,color:"#fff",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>×</button>}
         </div>
         <div style={{flex:1}}>
-          <div style={{fontSize:12,color:"rgba(0,0,0,.5)",marginBottom:8}}>Toca el emoji para cambiar el ícono</div>
-          <label style={{display:"inline-flex",alignItems:"center",gap:8,background:"#fff",border:"1px solid rgba(0,0,0,.1)",borderRadius:12,padding:"9px 14px",cursor:"pointer",fontSize:13,color:"rgba(0,0,0,.7)",fontWeight:600}}>
-            📷 Foto URL
-            <input type="text" value={f_.photo||""} onChange={e=>set("photo",e.target.value||null)} placeholder="https://..." style={{background:"none",border:"none",outline:"none",color:"#111",fontSize:13,width:120}}/>
+          <div style={{fontSize:12,color:"rgba(0,0,0,.5)",marginBottom:8}}>Sube una imagen o cambia el emoji</div>
+          
+          <label className="hap" style={{display:"inline-flex",alignItems:"center",gap:8,background:"#fff",border:"1px solid rgba(0,0,0,.1)",borderRadius:12,padding:"9px 14px",cursor:"pointer",fontSize:13,color:"rgba(0,0,0,.7)",fontWeight:600}}>
+            📷 Subir Foto
+            <input type="file" accept="image/*" onChange={handleImageUpload} style={{display:"none"}}/>
           </label>
+          
         </div>
       </div>
 
@@ -846,7 +870,6 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
     (!search||p.name.toLowerCase().includes(search.toLowerCase())||(p.sku||"").toLowerCase().includes(search.toLowerCase()))
   ),[productos,catFilter,search]);
 
-  // AHORA SÍ CONECTA AL BACKEND PYTHON EN VEZ DE SOLO MEMORIA LOCAL
   const adjustStock=(p,d)=>{
     const n=Math.max(0,Number(d));if(n<=0){toast("err","Ingresá un número mayor a 0");return;}
     
@@ -861,7 +884,7 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
     .then(res => res.json())
     .then(data => {
       if(data.estado === "exito"){
-        toast("ok", `📦 Stock actualizado persistido`);
+        toast("ok", `📦 Stock actualizado`);
         recargarProductos();
         setStockP(null); setDelta(""); setStockMode("tienda");
       } else {
@@ -870,7 +893,6 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
     });
   };
 
-  // AHORA SÍ CONECTA AL BACKEND PYTHON AL CREAR/EDITAR
   const saveProduct=prod=>{
     fetch(`${API_URL}/crear_producto`, {
       method: 'POST',
@@ -880,7 +902,7 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
     .then(res => res.json())
     .then(data => {
       if(data.estado === "exito"){
-        toast("ok", `✅ Producto guardado persistido`);
+        toast("ok", `✅ Producto guardado`);
         recargarProductos();
         setEditP(null);
       } else {
@@ -1116,7 +1138,6 @@ function App(){
   const toast=useCallback((type,msg)=>{const id=Date.now();setToasts(t=>[...t,{id,type,msg}]);setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),3500);},[]);
   const recargarProductos=useCallback(()=>{fetch(`${API_URL}/productos`).then(r=>r.json()).then(data=>setProductos(data.map(normProd))).catch(()=>toast("err","❌ Error actualizando inventario"));},[toast]);
 
-  // AHORA FETCH DE PRODUCTOS Y PEDIDOS DE LA BD REAL
   useEffect(()=>{
     if(!role) return;
     setCargando(true);
@@ -1164,7 +1185,6 @@ function App(){
     return null;
   };
 
-  /* NavItem reutilizable */
   function NavItem({n,vertical=false}){
     const active=page===n.k;
     return(
@@ -1194,7 +1214,6 @@ function App(){
       <Toasts toasts={toasts} rm={id=>setToasts(t=>t.filter(x=>x.id!==id))}/>
       <div className="shell">
 
-        {/* SIDEBAR desktop */}
         <div className="sidebar">
           <div style={{padding:"20px 16px 16px",borderBottom:"1px solid rgba(0,0,0,.08)"}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -1210,9 +1229,7 @@ function App(){
           </div>
         </div>
 
-        {/* MAIN */}
         <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",position:"relative",zIndex:1}}>
-          {/* Top bar */}
           <div style={{flexShrink:0,height:60,background:"rgba(255,255,255,.9)",backdropFilter:"blur(32px) saturate(200%)",borderBottom:"1px solid rgba(0,0,0,.08)",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 18px"}}>
             <div className="main-topbar-logo" style={{display:"flex",alignItems:"center",gap:10}}>
               <div style={{width:32,height:32,borderRadius:10,background:"#fff",border:"1px solid rgba(0,0,0,.1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,boxShadow:"0 2px 8px rgba(0,0,0,.03)"}}>🛒</div>
@@ -1224,10 +1241,8 @@ function App(){
             <button onClick={()=>setRole(null)} className="hap" style={{background:"#f8f9fa",border:"1px solid rgba(0,0,0,.1)",borderRadius:12,padding:"7px 14px",color:"rgba(0,0,0,.6)",fontSize:12,fontWeight:600}}>Salir</button>
           </div>
 
-          {/* Content */}
           <div style={{flex:1,overflow:"hidden",position:"relative"}}>{renderPage()}</div>
 
-          {/* Bottom nav mobile */}
           <div className="bottom-nav-mobile" style={{flexShrink:0,height:70,background:"rgba(255,255,255,.95)",backdropFilter:"blur(40px) saturate(200%)",borderTop:"1px solid rgba(0,0,0,.08)"}}>
             {NAV.map(n=><NavItem key={n.k} n={n} vertical={false}/>)}
           </div>
