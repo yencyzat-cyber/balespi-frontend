@@ -28,13 +28,11 @@
     .hap{transition:transform .12s cubic-bezier(.34,1.56,.64,1),opacity .1s;cursor:pointer}
     .hap:active{transform:scale(.88)!important;opacity:.72}
     
-    /* Fondo principal modo claro */
     .shell{width:100%;height:100vh;background:#f4f5f8;display:flex;flex-direction:column;position:relative;overflow:hidden}
     .sidebar{display:none}
     .bottom-nav-mobile{display:flex}
     .cart-float{position:fixed;bottom:80px;z-index:500;left:14px;right:14px;animation:slideUp .3s cubic-bezier(.34,1.2,.64,1) both}
     
-    /* ADAPTABILIDAD ESCRITORIO (Mantenida intacta) */
     @media(min-width:768px){
       body{background:linear-gradient(135deg,#f4f5f8 0%,#ffffff 60%,#f0f2f5 100%)}
       .shell{max-width:100%;margin:0;flex-direction:row;box-shadow:none}
@@ -66,9 +64,9 @@ const API_URL = "https://balespi-api.onrender.com";
 
 // NUEVA PALETA DE COLORES (Lila, Rosado, Magenta)
 const ROLES = {
-  admin:    {key:"admin",    label:"Administrador", sub:"Acceso completo",        icon:"✦", accent:"#a855f7", grad:"linear-gradient(135deg,#c084fc,#9333ea)"}, // Lila
-  vendedor: {key:"vendedor", label:"Vendedor Live",  sub:"Live · TikTok · WhatsApp", icon:"◈", accent:"#ec4899", grad:"linear-gradient(135deg,#f472b6,#db2777)"}, // Rosado vibrante
-  tienda:   {key:"tienda",   label:"Cajero Tienda",  sub:"Ventas en mostrador",      icon:"◉", accent:"#f43f5e", grad:"linear-gradient(135deg,#fb7185,#e11d48)"}, // Magenta/Coral
+  admin:    {key:"admin",    label:"Administrador", sub:"Acceso completo",        icon:"✦", accent:"#a855f7", grad:"linear-gradient(135deg,#c084fc,#9333ea)"},
+  vendedor: {key:"vendedor", label:"Vendedor Live",  sub:"Live · TikTok · WhatsApp", icon:"◈", accent:"#ec4899", grad:"linear-gradient(135deg,#f472b6,#db2777)"},
+  tienda:   {key:"tienda",   label:"Cajero Tienda",  sub:"Ventas en mostrador",      icon:"◉", accent:"#f43f5e", grad:"linear-gradient(135deg,#fb7185,#e11d48)"},
 };
 const STATUS_MAP = {
   pago_pendiente:{label:"Pendiente",color:"#f59e0b"},
@@ -674,7 +672,6 @@ function Traspasos({transfers,setTransfers,productos,setProductos,role,toast}){
   );
 }
 
-/* ── PRODUCTOS ── */
 /* ── FORM PRODUCTO (crear / editar) ── */
 const EMPTY_PROD = () => ({
   id: null, name:"", sku:"", cat:"", icon:"📦", photo:null,
@@ -686,21 +683,25 @@ const EMPTY_PROD = () => ({
 const ICONOS = ["📦","🧊","🫙","🪣","🛒","🥡","🫕","🧴","🍶","🫗","🪤","🧺","🧹","🪮","🫧","🍱","🥢","🧃","🫙","🪜"];
 const CATS_DEFAULT = ["Frascos","Tuppers","Utensilios","Accesorios","Bolsas","Otros"];
 
-function FormProducto({prod,onSave,onClose,accent,allCats}){
+// ¡AQUÍ ESTABA EL ERROR! Añadimos 'role' a la lista de variables que recibe el formulario
+function FormProducto({prod,onSave,onClose,accent,allCats,role}){
   const isEdit=!!prod.id;
-  const [f_,setF_]=useState(prod);
+  const [f_,setF_]=useState({
+    ...EMPTY_PROD(), 
+    ...prod, 
+    sku: prod.sku || String(Date.now()).slice(-6)
+  });
   const [promoPct,setPromoPct]=useState(prod.promo?.pct||0);
   const [showIconPicker,setShowIconPicker]=useState(false);
 
   const set=(k,v)=>setF_(p=>({...p,[k]:v}));
   const setPrice=(k,v)=>setF_(p=>({...p,prices:{...p.prices,[k]:Number(v)||0}}));
-  const allCatsOpts=[...new Set([...CATS_DEFAULT,...allCats])];
+  const allCatsOpts= useMemo(() => [...new Set([...CATS_DEFAULT,...(allCats || [])])], [allCats]);
 
   const handleSave=()=>{
     if(!f_.name.trim()){alert("El nombre es obligatorio");return;}
     const saved={
       ...f_,
-      sku: f_.sku||String(Date.now()).slice(-6),
       promo: promoPct>0?{pct:promoPct,label:`${promoPct}% OFF`}:null,
     };
     onSave(saved);
@@ -776,7 +777,6 @@ function FormProducto({prod,onSave,onClose,accent,allCats}){
           <GInput label="Unidades por docena" value={f_.perDozen||""} onChange={v=>set("perDozen",Number(v)||12)} type="number" placeholder="12"/>
           <GInput label="Unidades por cajón" value={f_.perBox||""} onChange={v=>set("perBox",Number(v)||20)} type="number" placeholder="20"/>
         </div>
-        {/* Preview precios totales */}
         {(f_.prices.docena_unit>0||f_.prices.cajon_unit>0)&&(
           <div style={{display:"flex",gap:8,marginTop:10}}>
             {f_.prices.docena_unit>0&&<div style={{flex:1,background:"rgba(245,158,11,.1)",border:"1px solid rgba(245,158,11,.2)",borderRadius:10,padding:"8px 10px",textAlign:"center"}}><div style={{fontSize:9,color:"#d97706",fontWeight:700,marginBottom:2}}>DOCENA TOTAL</div><div style={{fontWeight:900,color:"#d97706",fontSize:15}}>S/ {(f_.prices.docena_unit*(f_.perDozen||12)).toFixed(2)}</div></div>}
@@ -832,7 +832,7 @@ function FormProducto({prod,onSave,onClose,accent,allCats}){
 
 function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
   const accent=ROLES[role].accent;
-  const allCats=[...new Set(productos.map(p=>p.cat).filter(Boolean))];
+  const allCats= useMemo(() => productos ? [...new Set(productos.map(p=>p.cat).filter(Boolean))] : [], [productos]);
   const [search,setSearch]=useState("");
   const [catFilter,setCatFilter]=useState(null);
   const [stockP,setStockP]=useState(null);
@@ -841,8 +841,7 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
   const [editP,setEditP]=useState(null);
   const [vista,setVista]=useState("grid");
 
-  const cats=[...new Set(productos.map(p=>p.cat).filter(Boolean))];
-  const filtered=useMemo(()=>productos.filter(p=>
+  const filtered=useMemo(() => (productos || []).filter(p=>
     (!catFilter||p.cat===catFilter)&&
     (!search||p.name.toLowerCase().includes(search.toLowerCase())||(p.sku||"").toLowerCase().includes(search.toLowerCase()))
   ),[productos,catFilter,search]);
@@ -851,8 +850,8 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
   const adjustStock=(p,d)=>{
     const n=Math.max(0,Number(d));if(n<=0){toast("err","Ingresá un número mayor a 0");return;}
     
-    const newTienda = stockMode === "tienda" || stockMode === "ambos" ? p.stockTienda + n : p.stockTienda;
-    const newLive = stockMode === "live" || stockMode === "ambos" ? p.stockLive + n : p.stockLive;
+    const newTienda = stockMode === "tienda" || stockMode === "ambos" ? (p.stockTienda || 0) + n : p.stockTienda || 0;
+    const newLive = stockMode === "live" || stockMode === "ambos" ? (p.stockLive || 0) + n : p.stockLive || 0;
 
     fetch(`${API_URL}/actualizar_stock`, {
       method: 'POST',
@@ -862,11 +861,11 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
     .then(res => res.json())
     .then(data => {
       if(data.estado === "exito"){
-        toast("ok", `📦 Stock actualizado`);
+        toast("ok", `📦 Stock actualizado persistido`);
         recargarProductos();
         setStockP(null); setDelta(""); setStockMode("tienda");
       } else {
-        toast("err", `⛔ Error: ${data.detalle}`);
+        toast("err", `⛔ Error en BD: ${data.detalle}`);
       }
     });
   };
@@ -881,11 +880,11 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
     .then(res => res.json())
     .then(data => {
       if(data.estado === "exito"){
-        toast("ok", `✅ Producto guardado`);
+        toast("ok", `✅ Producto guardado persistido`);
         recargarProductos();
         setEditP(null);
       } else {
-        toast("err", `⛔ Error: ${data.detalle}`);
+        toast("err", `⛔ Error en BD: ${data.detalle}`);
       }
     });
   };
@@ -911,14 +910,14 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
       </div>
 
       <SearchBar value={search} onChange={setSearch} placeholder="Buscar nombre o SKU..."/>
-      <CatChips cats={cats} active={catFilter} onChange={setCatFilter} accent={accent}/>
+      <CatChips cats={allCats} active={catFilter} onChange={setCatFilter} accent={accent}/>
 
       {/* RESUMEN */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:14}}>
         {[
-          {l:"Total",v:productos.length,c:"rgba(0,0,0,.6)"},
-          {l:"Activos",v:productos.filter(p=>p.active).length,c:"#10b981"},
-          {l:"Stock bajo",v:productos.filter(p=>p.active&&(p.stockTienda<=p.stockMin||p.stockLive<=p.stockMin)).length,c:"#f59e0b"},
+          {l:"Total",v:productos?.length || 0,c:"rgba(0,0,0,.6)"},
+          {l:"Activos",v:(productos || []).filter(p=>p.active).length,c:"#10b981"},
+          {l:"Stock bajo",v:(productos || []).filter(p=>p.active&&((p.stockTienda || 0)<=p.stockMin||(p.stockLive || 0)<=p.stockMin)).length,c:"#f59e0b"},
         ].map((s,i)=>(
           <div key={i} style={{background:"#fff",border:`1px solid ${s.c.replace('.6','.15')}`,borderRadius:14,padding:"10px 12px",textAlign:"center",boxShadow:"0 2px 8px rgba(0,0,0,.02)"}}>
             <div style={{fontWeight:900,fontSize:22,color:s.c.replace('.6','1')}}>{s.v}</div>
@@ -931,7 +930,9 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
       {vista==="grid"?(
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:10}}>
           {filtered.map(p=>{
-            const lowT=p.stockTienda<=p.stockMin,lowL=p.stockLive<=p.stockMin;
+            const stockTienda = p.stockTienda || 0;
+            const stockLive = p.stockLive || 0;
+            const lowT = stockTienda <= p.stockMin, lowL = stockLive <= p.stockMin;
             return(
               <div key={p.id} style={{background:"#fff",border:`1px solid ${(lowT||lowL)?"rgba(245,158,11,.3)":p.promo?"rgba(244,63,94,.2)":"rgba(0,0,0,.08)"}`,borderRadius:20,padding:14,opacity:p.active?1:.5,position:"relative",boxShadow:"0 4px 12px rgba(0,0,0,.02)"}}>
                 {!p.active&&<div style={{position:"absolute",top:10,left:10,background:"rgba(239,68,68,.15)",border:"1px solid rgba(239,68,68,.3)",borderRadius:8,padding:"2px 8px",fontSize:9,fontWeight:800,color:"#dc2626"}}>PAUSADO</div>}
@@ -956,7 +957,9 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
       ):(
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
           {filtered.map(p=>{
-            const lowT=p.stockTienda<=p.stockMin,lowL=p.stockLive<=p.stockMin;
+            const stockTienda = p.stockTienda || 0;
+            const stockLive = p.stockLive || 0;
+            const lowT = stockTienda <= p.stockMin, lowL = stockLive <= p.stockMin;
             return(
               <div key={p.id} style={{background:"#fff",border:`1px solid ${(lowT||lowL)?"rgba(245,158,11,.3)":p.promo?"rgba(244,63,94,.2)":"rgba(0,0,0,.08)"}`,borderRadius:20,padding:14,opacity:p.active?1:.5,boxShadow:"0 2px 8px rgba(0,0,0,.02)"}}>
                 <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:10}}>
@@ -993,14 +996,6 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
         </div>
       )}
 
-      {filtered.length===0&&(
-        <div style={{textAlign:"center",color:"rgba(0,0,0,.4)",padding:"50px 0"}}>
-          <div style={{fontSize:36,marginBottom:10,opacity:.3}}>📦</div>
-          {search?`Sin resultados para "${search}"`:"No hay productos"}
-          {!search&&<div style={{marginTop:16}}><button onClick={()=>setEditP(EMPTY_PROD())} className="hap" style={{background:ROLES[role].grad,border:"none",borderRadius:14,padding:"12px 24px",color:"#fff",fontSize:14,fontWeight:700,boxShadow:`0 8px 24px ${accent}40`}}>+ Crear primer producto</button></div>}
-        </div>
-      )}
-
       {/* SHEET STOCK */}
       <Sheet open={!!stockP} onClose={()=>setStockP(null)} title={`📥 Ingresar Stock`}>
         {stockP&&(
@@ -1008,8 +1003,8 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
             <div style={{background:"#fff",border:"1px solid rgba(0,0,0,.08)",borderRadius:20,padding:18,boxShadow:"0 2px 12px rgba(0,0,0,.03)"}}>
               <div style={{fontWeight:700,fontSize:15,marginBottom:12,color:"#111"}}>{stockP.icon} {stockP.name}</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                <div style={{background:"rgba(245,158,11,.1)",border:"1px solid rgba(245,158,11,.2)",borderRadius:14,padding:12,textAlign:"center"}}><div style={{fontSize:11,color:"#d97706",fontWeight:600,marginBottom:4}}>🏪 TIENDA</div><div style={{fontSize:28,fontWeight:900,color:"#d97706"}}>{stockP.stockTienda}</div></div>
-                <div style={{background:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.2)",borderRadius:14,padding:12,textAlign:"center"}}><div style={{fontSize:11,color:"#059669",fontWeight:600,marginBottom:4}}>📱 LIVE</div><div style={{fontSize:28,fontWeight:900,color:"#059669"}}>{stockP.stockLive}</div></div>
+                <div style={{background:"rgba(245,158,11,.1)",border:"1px solid rgba(245,158,11,.2)",borderRadius:14,padding:12,textAlign:"center"}}><div style={{fontSize:11,color:"#d97706",fontWeight:600,marginBottom:4}}>🏪 TIENDA</div><div style={{fontSize:28,fontWeight:900,color:"#d97706"}}>{stockP.stockTienda || 0}</div></div>
+                <div style={{background:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.2)",borderRadius:14,padding:12,textAlign:"center"}}><div style={{fontSize:11,color:"#059669",fontWeight:600,marginBottom:4}}>📱 LIVE</div><div style={{fontSize:28,fontWeight:900,color:"#059669"}}>{stockP.stockLive || 0}</div></div>
               </div>
             </div>
             <div>
@@ -1022,8 +1017,8 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
             </div>
             <GInput label="Unidades a ingresar" value={delta} onChange={setDelta} type="number" placeholder="Ej: 60"/>
             {delta&&Number(delta)>0&&<div style={{background:"rgba(16,185,129,.08)",border:"1px solid rgba(16,185,129,.2)",borderRadius:14,padding:14,fontSize:13,color:"#059669",fontWeight:600}}>
-              {stockMode==="tienda"&&`🏪 Tienda: ${stockP.stockTienda} → ${stockP.stockTienda+Number(delta)}u`}
-              {stockMode==="live"&&`📱 Live: ${stockP.stockLive} → ${stockP.stockLive+Number(delta)}u`}
+              {stockMode==="tienda"&&`🏪 Tienda: ${stockP.stockTienda || 0} → ${(stockP.stockTienda || 0)+Number(delta)}u`}
+              {stockMode==="live"&&`📱 Live: ${stockP.stockLive || 0} → ${(stockP.stockLive || 0)+Number(delta)}u`}
               {stockMode==="ambos"&&`🏪 +${Number(delta)}u  y  📱 +${Number(delta)}u`}
             </div>}
             <button onClick={()=>adjustStock(stockP,delta)} disabled={!delta||Number(delta)<=0} className="hap" style={{background:delta&&Number(delta)>0?"linear-gradient(135deg,#10b981,#059669)":"#f8f9fa",color:delta&&Number(delta)>0?"#fff":"rgba(0,0,0,.3)",border:delta&&Number(delta)>0?"none":"1px solid rgba(0,0,0,.1)",borderRadius:18,padding:"16px",fontSize:15,fontWeight:700,cursor:delta&&Number(delta)>0?"pointer":"not-allowed",boxShadow:delta&&Number(delta)>0?"0 8px 24px rgba(16,185,129,.3)":"none"}}>Confirmar Ingreso</button>
@@ -1031,9 +1026,9 @@ function ProductosScreen({productos,setProductos,role,toast,recargarProductos}){
         )}
       </Sheet>
 
-      {/* SHEET CREAR / EDITAR */}
+      {/* AQUÍ SE AÑADIÓ 'role={role}' PARA QUE EL FORMULARIO SEPA DE QUÉ COLOR PINTAR EL BOTÓN */}
       <Sheet open={!!editP} onClose={()=>setEditP(null)} title={editP?.id?"✏️ Editar producto":"✨ Nuevo producto"}>
-        {editP&&<FormProducto prod={editP} onSave={saveProduct} onClose={()=>setEditP(null)} accent={accent} allCats={allCats}/>}
+        {editP&&<FormProducto prod={editP} onSave={saveProduct} onClose={()=>setEditP(null)} accent={accent} allCats={allCats} role={role}/>}
       </Sheet>
 
     </div>
